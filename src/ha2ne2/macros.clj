@@ -1,10 +1,43 @@
-
-(ns ha2ne2.macros
-  (:require [ha2ne2.util]))
+(ns ha2ne2.macros)
 
 (defmacro ana-assoc [m key val]
   `(let [~'it (~m ~key)]
      (assoc ~m ~key ~val)))
+
+;; (tree-find-if (every-pred coll? #(= 3 (count %)))
+;;  '(((1)) 1 1 1 (((1 1 5) (1)) 1) ((((1)) (2)))))
+;;=> (1 1 5)
+
+;; (tree-find-if (every-pred number? even?)
+;;  '(((1)) 1 1 1 (((1 1 5) (1)) 1) ((((1)) (2)))))
+;;=> 2
+(defn tree-find-if [f tree]
+  (letfn [(rec [f tree]
+            (cond (f tree) tree
+                  (or (not (coll? tree)) (empty? tree)) nil
+                  :else (or (rec f (first tree)) (rec2 f (rest tree)))))
+          (rec2 [f tree]
+            (if (empty? tree) nil
+                (or (rec f (first tree)) (rec2 f (rest tree)))))]
+    (rec f tree)))
+
+(defn tree-copy [tree]
+  (cond (nil? tree) nil
+        ((every-pred coll? empty?) tree) '()
+        (coll? tree) (cons (tree-copy (first tree)) (tree-copy (rest tree)))
+        :else tree))
+
+;; (tree-replace-if (every-pred number? even?) '_ '(1 ((2) (3)) (((4) 5) 6) [7] [8] ((((9 10))))))
+;; (1 ((_) (3)) (((_) 5) _) (7) (_) ((((9 _)))))
+(defn tree-replace-if [f x tree]
+  (letfn [(rec [f tree]
+            (cond (f tree) x
+                  (or (not (coll? tree)) (empty? tree)) tree
+                  :else (cons (rec f (first tree)) (rec2 f (rest tree)))))
+          (rec2 [f tree]
+            (if (empty? tree) tree
+                (cons (rec f (first tree)) (rec2 f (rest tree)))))]
+    (rec f tree)))
 
 ;; (if-let-it (= 15 (it-is (* 3 5)))
 ;;   (list 'it 'is it)
@@ -17,8 +50,8 @@
 ;; ↓
 ;;(it is 15)
 (defmacro if-let-it [condition then-clause else-clause]
-  (let [it-exp (ha2ne2.util/tree-find-if (every-pred coll? (comp #(= 'it-is %) first)) condition)
-        cond (ha2ne2.util/tree-replace-if #(= it-exp %) 'it condition)]
+  (let [it-exp (tree-find-if (every-pred coll? (comp #(= 'it-is %) first)) condition)
+        cond (tree-replace-if #(= it-exp %) 'it condition)]
     `(let [~'it ~(second it-exp)]
        (if ~cond
          ~then-clause

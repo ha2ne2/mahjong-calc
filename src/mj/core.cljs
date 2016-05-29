@@ -28,6 +28,11 @@
     (events/listen calc-btn "click"
                    (fn [event]
                      (set! (.-innerHTML result-area) (calc/nan-ten?-with-img (.-value hand)))
+                     ))
+
+    (events/listen clear-btn "click"
+                   (fn [event]
+                     (set! (.-value hand) "")
                      ))))
 
 

@@ -46,7 +46,7 @@
                                  remove-xs intersection set-difference subset? remove-duplicate
                                  find-duplicate count-if juxt* juxt-or juxt-cat remove-nth
                                  random-take iter-perm permutations sfirst $ count= c-to-i s-to-i
-                                 =c find-if flip]]))
+                                 =c find-if flip include?]]))
 (def yaku-set
   (yakulist-to-set
    ((1 門前清自摸和 立直 槍槓 嶺上開花 海底撈月 河底撈魚 役牌 断幺九 一盃口 平和)
@@ -102,11 +102,11 @@
 ;; (to-list* "123m白白白")
 ;; ((m 1) (m 2) (m 3) (白) (白) (白))
 (defn to-list* [s]
-  (letfn [(switch [s]
+  (letfn [(conv [s]
             ((if (= (count s) 1)
                (comp list list symbol)  ; jihai 
                num-to-list) s))] ; suuhai
-    (mapcat switch (re-seq #"\d+\w|\W" s))))
+    (mapcat conv (re-seq #"\d+\w|\W" s))))
 
 ;; (concat (mapcat num-to-list (re-seq #"\d+\w" s)) 
 ;;         (map #(list (symbol %)) (re-seq #"\W" s)))) ; jihai 
@@ -240,82 +240,52 @@
 ;;=> "123m"
 (defn pair-to-str [lst]
   (str (if (jihai (first lst))
-         (apply str (repeat (count lst) (ffirst lst)))
-         (str (apply str (map second lst)) (ffirst lst)))
-       (if (= (:kind (meta lst)) :ankan) "'" "")))
-
-(defn grouped-hand-to-str [hand] (apply str (map pair-to-str hand)))
-
-;; (defn figure-to-str [{:keys [figure pon ti- kan ankan] :as hand}]
-;;   (str (grouped-hand-to-str figure)
-;;        (when pon (apply str (map (comp #(str " " %) pair-to-str) pon)))
-;;        (when ti- (apply str (map (comp #(str " " %) pair-to-str) ti-)))
-;;        (when kan (apply str (map (comp #(str " " %) pair-to-str) kan)))
-;;        (when ankan (apply str (map (comp #(str " " % "'") pair-to-str) ankan)))))
-
+         (if (= (count lst) 5)
+           (str (apply str (repeat 4 (ffirst lst))) "'")
+           (apply str (repeat (count lst) (ffirst lst))))
+         (str (apply str (map second lst)) (ffirst lst)))))
 
 (defn figure-to-str [{:keys [figure naki] :as hand}]
-  (apply str (grouped-hand-to-str figure)
-         (when naki
-           (apply str " " (interpose " " (map pair-to-str naki))))))
+  (str (apply str (map pair-to-str figure))
+       (when naki
+         (apply str " " (interpose " " (map pair-to-str naki))))))
 
 ;; 関数を返す関数に関数を返す関数を適用して関数を返す関数
-(defn get-pai-pairs-function-generator [pair-fn]
+(defn get-pairs-function-generator [pair-gen]
   (fn [lst]
-    (let [length (count lst)]
-      (loop [n 0 acc '()]
-        (if (< n length)
-          (if-let [pair (pair-fn lst (nth lst n))]
-            (recur (inc n) (cons pair acc))
-            (recur (inc n) acc))
-          (remove-duplicate acc))))))
-  ;; (Y (fn [self]
-  ;;      (fn
-  ;;        ([lst] ((self) lst 0 nil))
-  ;;        ([lst n acc]
-  ;;         (if (<= (count lst) n)
-  ;;           (empty-to-nil
-  ;;            (remove-duplicate (reverse acc)))
-  ;;           (let [pair (pair-fn lst (nth lst n))]
-  ;;             (if pair
-  ;;               ((self) lst (inc n) (cons pair acc))
-  ;;               ((self) lst (inc n) acc))))))))
+    (remove-duplicate
+     (for [x lst
+           :let [a (pair-gen x)]
+           :when (include? a lst)]
+       a))))
 
-;; (get-toitu (to-list "123s333456m88p白白白"))
-;; -> (((m 3) (m 3)) ((p 8) (p 8)) (("白") ("白")))
+;; (get-toitu (to-list* "123s333456m88p白白白"))
+;; (((白) (白)) ((p 8) (p 8)) ((m 3) (m 3)))
 (def get-toitu
-  (get-pai-pairs-function-generator
-   (fn [lst pai] (strict-take 2 (filter (=x pai) lst)))))
+  (get-pairs-function-generator
+   (fn [pai] (repeat 2 pai))))
 
-;; (get-koutu (to-list "123s333456m88p白白白"))
-;; -> (((m 3) (m 3) (m 3)) (("白") ("白") ("白")))
+;; (get-koutu (to-list* "123s333456m88p白白白"))
+;; (((白) (白) (白)) ((m 3) (m 3) (m 3)))
 (def get-koutu
-  (get-pai-pairs-function-generator
-   (fn [lst pai] (strict-take 3 (filter (=x pai) lst)))))
+  (get-pairs-function-generator
+   (fn [pai] (repeat 3 pai))))
 
-;; (get-syuntu (to-list "123s333456m88p白白白"))
-;; -> (((s 1) (s 2) (s 3)) ((m 3) (m 4) (m 5)))
+;; (get-syuntu (to-list* "123s333456m88p白白白"))
+;; (((m 3) (m 4) (m 5))
+;;  ((m 4) (m 5) (m 6))
+;;  ((s 1) (s 2) (s 3)))
 (def get-syuntu
-  (get-pai-pairs-function-generator
-   (fn [lst pai] (subset? (strict-take 3 (iterate* next-pai pai)) lst))))
+  (get-pairs-function-generator
+   (fn [pai] (strict-take 3 (iterate* next-pai pai)))))
 
-;; (get-syuntu-or-koutu (:menzen (to-list "111222333s")))
-;; =>
+;; (get-syuntu-or-koutu (to-list* "111222333s"))
 ;; (((s 1) (s 2) (s 3))
-;;  ((s 1) (s 1) (s 1))
+;;  ((s 3) (s 3) (s 3))
 ;;  ((s 2) (s 2) (s 2))
-;;  ((s 3) (s 3) (s 3)))
+;;  ((s 1) (s 1) (s 1)))
 (def get-syuntu-or-koutu (juxt-cat get-syuntu get-koutu))
 
-
-;;(figure-out (to-list "123s123s123s123s4p 4p"))
-
-;; (to-list "2340s 5s")
-;; {:ba 東, :kyoku 1, :honba 0, :ie 南, :dora nil, :ura-dora nil, :oya false, :aux (), :menzen ((s 2) (s 3) (s 4) (s 5 red)), :string "2340s 5s", :ron (s 5), :naki ()}
-;; (figure-out-str "2340s 5s")
-
-;; hand -> [hand]
-;; (def figure-out-str (comp figure-out to-list))
 
 ;; 上がり形かどうかの判定のコア関数
 ;; 順子か刻子をあらゆる組み合わせで取って行って、最後に2つ雀頭ができたらアガリ。
@@ -724,27 +694,19 @@
    :飜 (figure :han)
    :点 (figure :ten)
    :役 (figure :yaku)))
-    
 
+;; (nan-ten? "12344678m34789s 2s:東4局1本場東家立直一発ドラ7m裏ドラ4m")
+;; ({:手 "123m678m234s789s44m ", :親/子 親, :符 30, :飜 6, :点 18000, :役 ((1 立直) (1 一発) (1 平和) (1 ドラ) (2 裏ドラ))})
+;; (nan-ten? "1122334455667m 7m")
+;; ({:手 "123m123m567m567m44m ", :親/子 子, :符 30, :飜 10, :点 16000, :役 ((1 平和) (3 二盃口) (6 清一色))}
+;;  {:手 "234m234m567m567m11m ", :親/子 子, :符 30, :飜 10, :点 16000, :役 ((1 平和) (3 二盃口) (6 清一色))}
+;;  {:手 "123m123m456m456m77m ", :親/子 子, :符 40, :飜 9, :点 16000, :役 ((3 二盃口) (6 清一色))}
+;;  {:手 "11m22m33m44m55m66m77m ", :親/子 子, :符 25, :飜 8, :点 16000, :役 ((2 七対子) (6 清一色))})
+
+(defn nibai [n] (* n 2))
 
 (defn my-ceil [n]
   (* 100 (int (/ (+ n 99) 100))))
-
-
-;; Clojure、セットがそのまま関数として使えるのすごく便利
-;; ('#{apple orange grape} 'grape) ;=> grape
-;; ('{:name hatsu :peer true} :name) ;=> hatsu
-
-;; (nan-ten? "12344678m34789s 2s:東4局1本場東家立直一発ドラ7m裏ドラ4m")
-;; (("123m678m234s789s44m" :符 30 :飜 6 :点 18300 :役 ((1 立直) (1 一発) (1 平和) (1 ドラ) (1 裏ドラ))))
-
-;; (nan-ten? "1122334455667m 7m")
-;; (("11m22m33m44m55m66m77m" :符 25 :飜 8 :点 16000 :役 ((2 七対子) (6 清一色)))
-;;  ("123m123m456m456m77m" :符 40 :飜 9 :点 16000 :役 ((3 二盃口) (6 清一色)))
-;;  ("123m123m567m567m44m" :符 30 :飜 10 :点 16000 :役 ((1 平和) (3 二盃口) (6 清一色)))
-;;  ("234m234m567m567m11m" :符 30 :飜 10 :点 16000 :役 ((1 平和) (3 二盃口) (6 清一色))))
-
-(defn nibai [n] (* n 2))
 
 ;; (nan-ten?* 30 4 false false)
 ;; 7700
@@ -845,7 +807,11 @@
                        :hu hu
                        :ten ten)
                 ))]
-      (sort-by (juxt :飜 :符) (flip compare) (map (comp show-figure add-info) figures hans hus)))))
+      (sort-by (juxt :飜 :符)
+               (flip compare)
+               (map (comp show-figure add-info) figures hans hus)))))
+
+
 
 (defn nan-ten? [str]
   (nan-ten?% (to-list str)))

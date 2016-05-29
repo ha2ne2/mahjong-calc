@@ -26,12 +26,12 @@
 ;; (def ids (get-ids data-list))
 ;; (def id (first ids))
 
-(def file-names 
-  (-> (slurp (jio/resource "gz2/file_names.txt"))
-      (clojure.string/split #"\r\n")))
+;; (def file-names 
+;;   (-> (slurp (jio/resource "gz2/file_names.txt"))
+;;       (clojure.string/split #"\r\n")))
 
 (defn get-ids-from-file [file-name]
-  (-> (slurp (jio/resource (str "gz2/" file-name)))
+  (-> (slurp (jio/resource file-name))
       (clojure.string/split #"\r\n")
       ton-nan-filter
       get-ids))
@@ -80,8 +80,8 @@
 (defn extract-date [id]
   (->> id (re-find #"20(1\d\d\d)") second))
 
-(def monthly-files
-  (group-by extract-date file-names))
+;; (def monthly-files
+;;   (group-by extract-date file-names))
 
 (defn get-path-from-id [id]
   (str (->> id (re-find #"20(1\d\d\d)") second) "/"))
@@ -354,7 +354,7 @@
 
 (defn get-agari [id]
   (letfn [(parse [id]
-            (->> (str "dev-resources/" id ".xml")
+            (->> (jio/resource (str id ".xml"))
                  slurp
                  xml-parse
                  xml-seq
@@ -458,15 +458,15 @@
           true)
       (do (println " FAIL:" s me tenho agari-data) false))))
 
-(defn agari-100-test []
-  (reduce (fn [acc agari-data]
-            (update
-             (if (tenho-test agari-data)
-               (update acc :pass inc)
-               (update acc :fail inc))
-             :test inc))
-          {:test 0, :pass 0, :fail 0}
-          agari-data100))
+;; (defn agari-100-test []
+;;   (reduce (fn [acc agari-data]
+;;             (update
+;;              (if (tenho-test agari-data)
+;;                (update acc :pass inc)
+;;                (update acc :fail inc))
+;;              :test inc))
+;;           {:test 0, :pass 0, :fail 0}
+;;           agari-data100))
 
 (defn agari-test [agari-data-list]
   (reduce
@@ -493,3 +493,10 @@
   (let [ids    (mapcat get-ids-from-file file-names)
         agaris (mapcat #(get-agari' (get-path-from-id %) %) ids)]
     (agari-test agaris)))
+
+(defn xml-file-test [id]
+  (let [agaris (get-agari id)]
+    (agari-test agaris)))
+
+;; (xml-file-test "2014010100gm-00a9-0000-2a19cc5b")
+;; {:test 8, :pass 8, :fail 0}
