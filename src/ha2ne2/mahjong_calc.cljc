@@ -906,33 +906,5 @@
 
 'ok
 
-;; (defn foldr [f z xs]
-;;   (letfn [(step [g x a] (g (f x a)))]
-;;     ((reduce (partial partial step) identity xs) z)))
-
-;; (foldr #(str "(" % "+" %2 ")") '(1 2 3 4))
-;; "(1+(2+(3+4)))"
-
-
-
-;; FAIL: 西西西北北 clojure.lang.LazySeq@2d077f61 (40 48000) (40 96000)
-;; {:ba 東, :kyoku 3, :ie 東, :oya true,
-;;  :menzen ((西) (西) (北) (北)),
-;;  :naki (((南) (南) (南)) ((発) (発) (発)) ((東) (東) (東))),
-;;  :pon (((南) (南) (南)) ((発) (発) (発)) ((東) (東) (東))), :ti- nil, :kan nil, :ankan nil,
-;;  :dora ((p 1)), :ura-dora nil, :tumo nil, :ron (西),
-;;  :yaku' ((13 小四喜) (13 字一色)), :hu' 40, :ten' 96000, :aux (),
-;;  :orig {:who 2, :hai 116,117,118,121,122, :fromWho 0, :ba 0,0, :doraHai 68, :m 44106,49195,42027, :owari -722,-122.0,241,4.0,1280,138.0,201,-20.0, :machi 117, :ten 40,96000,5, :sc 238,-960,241,0,320,960,201,0, :yakuman 50,42}}
-
-;; FAIL: 西西西南南 clojure.lang.LazySeq@a8097d61 (50 32000) (50 64000)
-;; (nan-ten?%
-;;  '{:ba 南, :kyoku 1, :ie 南, :oya false,
-;;  :menzen ((南) (西) (西) (西)), :naki (((北) (北) (北)) ((東) (東) (東)) ((発) (発) (発))),
-;;  :pon (((北) (北) (北)) ((東) (東) (東)) ((発) (発) (発))), :ti- nil, :kan nil, :ankan nil,
-;;  :dora ((s 9)), :ura-dora nil, :tumo nil, :ron (南),
-;;  :yaku' ((13 小四喜) (13 字一色)), :hu' 50, :ten' 64000, :aux ()})
-
-
-
 
 

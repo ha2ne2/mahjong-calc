@@ -21,9 +21,12 @@
 (defn my-flatten
   ([lst] (my-flatten lst nil))
   ([lst result]
-   (cond (= () lst) result
-         (atom? lst) (cons lst result)
+   (cond (atom? lst) (cons lst result)
+         (empty? lst) result
          true (my-flatten (first lst) (my-flatten (rest lst) result)))))
+
+(my-flatten '(((1 (2)) 3 4 5) (6)))
+
 
 ; remove nil from (map f lst). alternative mapcat
 (defn map* [f [head & tail :as lst]]

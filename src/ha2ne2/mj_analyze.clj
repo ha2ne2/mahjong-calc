@@ -44,9 +44,9 @@
 
 ;; (mapc-with-time
 ;;  (fn [x]
-;;    (Thread/sleep 3000)
+;;    (Thread/sleep 100)
 ;;    (println x))
-;;  (range 10) 1)
+;;  (range 1000) 10)
 
 (defn mapc-with-time
   ([f coll]
@@ -87,7 +87,7 @@
   (str (->> id (re-find #"20(1\d\d\d)") second) "/"))
 
 (defn download-xml' [id]
-  (let [file-name (str "dev-resources/" (extract-date id) "/" id ".xml")]
+  (let [file-name (str "resources/" (extract-date id) "/" id ".xml")]
     (when-not (.exists (clojure.java.io/as-file file-name))
       (println id)
       (try
@@ -316,8 +316,34 @@
                :orig agari-data
                )))
 
-(defn conv [direction n]
-  {:ba ('[東 南 西 北] direction)
+;; (split-by zero? '(0 1 2 2 3 3 0 0 0 1 2 3 0 1))
+;; ((0 1 2 2 3 3) (0) (0) (0 1 2 3) (0 1))
+(defn split-by [f lst]
+  (map seq
+   (loop [[h & t :as l] (rest lst)
+          acc [(first lst)]
+          result []]
+     (cond (empty? l) (conj result acc)
+           (f h) (recur t [h] (conj result acc))
+           :else (recur t (conj acc h) result)))))
+
+;; (split-by' zero? '(0 1 2 2 3 3 0 0 0 1 2 3 0 1))
+;; ((0 1 2 2 3 3) (0 0 0 1 2 3) (0 1))
+(defn split-by' [f lst]
+  (map seq
+       (loop [[h & t :as l] lst
+              prev true
+              acc []
+              acc2 []]
+         (if (empty? l) (conj acc2 acc)
+             (let [curr (f h)]
+               (if (and curr (not prev))
+                 (recur t curr [h] (conj acc2 acc))
+                 (recur t curr (conj acc h) acc2)))))))
+
+
+(defn conv [ba n]
+  {:ba ba
    :kyoku (inc n)
    :oya n})
 
@@ -326,31 +352,9 @@
 ;;  "南1局" "南1局" "南2局" "南3局" "南4局"
 ;;  "西1局" "西2局")
 (defn ba-conv [lst]
-  (loop [[a b & r :as lst] lst
-         direction 0
-         result nil]
-    (if (nil? b)
-      (reverse (conj result (conv direction a)))
-      (recur (rest lst)
-             (mod (+ direction (if (= [3 0] [a b]) 1 0)) 4)
-             (conj result (conv direction a))))))
-
-;; (split-by zero? '(0 1 2 0 1 6 7 0 3 2 4))
-;; ((0 1 2) (0 1 6 7) (0 3 2 4))
-(defn split-by [f lst]
-  (map seq
-   (loop [[h & t :as lst] lst
-          acc []
-          result []]
-     (cond (empty? lst) (conj result acc)
-           (f h) (recur t (conj [] h)
-                        (if (empty? acc) result
-                            (conj result acc)))
-           :else (recur t (conj acc h) result)))))
-
-
-(defn add-ba-info [[ba-info & agaris]]
-  (map #(convert-agari % ba-info) agaris))
+  (mapcat #(map (partial conv %) %2)
+          (flatten (repeat '(東 南 西 北)))
+          (split-by' zero? lst)))
 
 (defn get-agari [id]
   (letfn [(parse [id]
@@ -363,12 +367,12 @@
                          :INIT (read-string (:oya (:attrs %)))
                          :AGARI (:attrs %)))
                  (split-by number?)))
-          (join [data]
-            (mapcat add-ba-info
-                    (map #(cons % %2)
-                         (ba-conv (map first data))
-                         (map rest data))))]
-    (join (parse id))))
+          (convert [data]
+            (mapcat (fn [ba-info agaris] (map #(convert-agari % ba-info) agaris))
+                    (ba-conv (map first data))
+                    (map rest data)))]
+    (convert (parse id))))
+
 
 (defn get-agari' [path id]
   (get-agari (str path id)))
@@ -483,20 +487,37 @@
 
 
 ;;(def agari-data100 (take 100 (mapcat get-agari ids)))
-(defn monthly-test [month-str]
-  (let [files  (monthly-files month-str)
-        ids    (mapcat get-ids-from-file files)
-        agaris (mapcat #(get-agari' (str month-str "/") %) ids)]
-    (agari-test agaris)))
+;; (defn monthly-test [month-str]
+;;   (let [files  (monthly-files month-str)
+;;         ids    (mapcat get-ids-from-file files)
+;;         agaris (mapcat #(get-agari' (str month-str "/") %) ids)]
+;;     (agari-test agaris)))
 
-(defn year-test []
-  (let [ids    (mapcat get-ids-from-file file-names)
-        agaris (mapcat #(get-agari' (get-path-from-id %) %) ids)]
-    (agari-test agaris)))
+;; (defn year-test []
+;;   (let [ids    (mapcat get-ids-from-file file-names)
+;;         agaris (mapcat #(get-agari' (get-path-from-id %) %) ids)]
+;;     (agari-test agaris)))
 
 (defn xml-file-test [id]
   (let [agaris (get-agari id)]
     (agari-test agaris)))
 
-;; (xml-file-test "2014010100gm-00a9-0000-2a19cc5b")
+
+(map agari->str (get-agari "2014010100gm-00a9-0000-2a19cc5b"))
+("345p22456s東東東"
+ "44m234p"
+ "22299m"
+ "456m567789p22678s"
+ "22789p東東東"
+ "567m23455678p234s"
+ "567789m567p11678s"
+ "678m11555p234s白白白")
+
+
+(defn agari->str [agari]
+  (-> (get-in agari [:orig :hai])
+      tenho->ha2ne2
+      to-str))
+
+
 ;; {:test 8, :pass 8, :fail 0}
