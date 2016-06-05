@@ -162,7 +162,7 @@
      :honba (if honba (s-to-i (honba 1)) 0) :ie (if ie (symbol (ie 1)) '南)
      :dora (when dora (to-list* (dora 1)))
      :ura-dora (when ura-dora (to-list* (ura-dora 1)))
-     :oya (true? (or (and ba ie (= (ba 1) (ie 1))) oya))
+     :oya (true? (or (and ie (= "東" (ie 1))) oya))
      :aux aux)
     ))
 
@@ -222,17 +222,18 @@
         (<= 9 (second p)) nil
         :else (list (first p) (inc (second p)))))
 
-;;(to-str '((p 9) (m 4) (s 5) (s 4) (s 7) (m 7) (m 7) (p 1) (p 5) (m 6) (m 3) (北) (m 4) (p 1)))
-;;=>"9p4m547s77m15p63m北4m1p"
+;; (to-str '((p 9) (m 4) (s 5) (s 4) (s 7) (m 7) (m 7) (p 1) (p 5) (m 6) (m 3) (北) (m 4) (p 1)))
+;;=> "9p4m547s77m15p63m北4m1p"
 (defn to-str [hand]
-  (letfn [(rec [hand buf result]
+  (letfn [(rec [[[curr-color :as h] & t :as hand] [[prev-color] :as buf] result]
             (if (empty? hand)
-              (str result (($ str) (map second (reverse buf))) (ffirst buf))
-              (if (and (not (jihai (first hand))) (= (ffirst hand) (ffirst buf)))
-                (recur (rest hand) (cons (first hand) buf) result)
-                (recur (rest hand) (list (first hand))
-                       (str result (apply str (map second (reverse buf))) (ffirst buf))))))]
-    (rec hand nil nil)))
+              (str result (apply str (map second buf)) prev-color)
+              (let [h (if ((comp :red meta) h) (list curr-color 0) h)]
+                (if (and (not (jihai h)) (= curr-color prev-color))
+                  (recur t (conj buf h) result)
+                  (recur t [h]
+                         (str result (apply str (map second buf)) prev-color))))))]
+    (rec hand [] "")))
 
 (defn random-hand-str [] (to-str (random-take 14 all-pais)))
 
@@ -247,7 +248,7 @@
 
 (defn figure-to-str [{:keys [figure naki] :as hand}]
   (str (apply str (map pair-to-str figure))
-       (when naki
+       (when (not (empty? naki))
          (apply str " " (interpose " " (map pair-to-str naki))))))
 
 ;; 関数を返す関数に関数を返す関数を適用して関数を返す関数
@@ -745,16 +746,6 @@
     ; (if tumo "16000all" "48000") (if tumo "8000-16000" "32000")
     ))
 
-;; (nan-ten? "223344m456s8567p 8p':東1局0本場東家立直")
-;; (("234m234m567p456s88p" :符 30 :飜 4 :点 11700 :役 ((1 立直) (1 断么九) (1 門前自摸) (1 一盃口))))
-
-;; (figure-out (to-list "223344m456s8567p 8p':東1局0本場東家立直"))
-;; ({:figure (((m 2) (m 3) (m 4)) ((m 2) (m 3) (m 4)) ((p 5) (p 6) (p 7)) ((s 4) (s 5) (s 6)) ((p 8) (p 8))), :tumo (p 8), :ippatu false, :dora nil, :ba 東, :menzen ((m 2) (m 2) (m 3) (m 3) (m 4) (m 4) (s 4) (s 5) (s 6) (p 8) (p 5) (p 6) (p 7)), :naki (), :oya true, :kyoku 1, :string "223344m456s8567p 8p':東1局0本場東家立直", :honba 0, :ie 東, :ri-ti true, :ura-dora nil})
-
-;; (set (list (repeat 3 (list '東))))
-;; #{((東) (東) (東))}
-
-;; #{((東) (東) (東))}
 
 (defn count-dora [dora-lst hand]
   (reduce + (map #(count-if (=c %) hand) dora-lst)))
@@ -788,9 +779,9 @@
                                          (concat (filter koutu? (figure :figure))
                                                  (figure :naki)))
                                '((1 自風牌)))
-                             (when (not= aka-dora-count 0) `((~aka-dora-count ~'赤ドラ)))
                              (when (not= dora-count 0) `((~dora-count ~'ドラ)))
                              (when (not= ura-dora-count 0) `((~ura-dora-count ~'裏ドラ)))))
+                             (when (not= aka-dora-count 0) `((~aka-dora-count ~'赤ドラ)))
                           )
                     han (reduce + (map first yaku))
                     yaku-lst (map second yaku)
@@ -856,8 +847,6 @@
                #(str "<img src='" pai_image_path (pai-to-file-name %) "'>")
                pais)))
 
-
-
 (defn naki-to-tags [[head & tail :as unit]]
   (if (count= 5 unit)
     (str ((comp add-img-tag (add-path pai_image_path)) "ura.png")
@@ -867,11 +856,20 @@
     (str (naki-to-tag head) (pais-to-tags tail))))
               
 (defn hand-to-html [{:keys [menzen naki ron tumo] :as hand}]
-  (let [menzen (pais-to-tags menzen)
-        naki   (join "　" (map naki-to-tags naki))]
+  (let [menzen (pais-to-tags menzen)]
     (str menzen
-         (when naki (str "　" naki))
+         (when naki (str "　" (join "　" (map naki-to-tags naki))))
          (when (or ron tumo) (str "　" (pai-to-tag (or ron tumo)))))))
+
+
+(defn hand-to-str [{:keys [menzen naki ron tumo] :as hand}]
+  (let [menzen (to-str menzen)]
+    (str menzen
+         (when naki (str " " (join " " (map to-str naki))))
+         (when (or ron tumo)
+           (str " " (to-str (list (or ron tumo)))
+                (when tumo "'")))
+         )))
 
 ;; (to-list "1123406m 789m 4444m' 1m")
 ;; {:ba 東, :kyoku 1, :honba 0, :ie 南, :dora nil, :ura-dora nil, :oya false, :aux (), :menzen ((m 1) (m 1) (m 2) (m 3) (m 4) (m 5) (m 6)), :naki (((m 7) (m 8) (m 9)) ((m 4) (m 4) (m 4) (m 4) ('))), :aka (m), :string "1123406m 789m 4444m' 1m", :ti- (((m 7) (m 8) (m 9))), :ankan (((m 4) (m 4) (m 4) (m 4))), :ron (m 1)}

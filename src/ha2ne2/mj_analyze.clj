@@ -101,23 +101,19 @@
   (xml/parse (java.io.ByteArrayInputStream. (.getBytes s))))
 
 (defn pai-convertor [n]
-  (let [n (quot n 4)
-        color-table '[m p s z]
-        color (color-table (quot n 9))
-        num (inc (mod n 9))]
-    (if (= color 'z)
-      (list ('[東 南 西 北 白 発 中] (dec num)))
-      (list color num))))
+  (case n
+    16  (with-meta '(m 5) {:red true})
+    52 (with-meta '(p 5) {:red true})
+    88 (with-meta '(s 5) {:red true})
+    (let [n (quot n 4)
+          color-table '[m p s z]
+          color (color-table (quot n 9))
+          num (inc (mod n 9))]
+      (if (= color 'z)
+        (list ('[東 南 西 北 白 発 中] (dec num)))
+        (list color num)))))
 
-;; (map (fn [[k v]] (list k (to-str (tenho->ha2ne2 v))))
-;;      {:hai3 "87,35,50,48,77,63,17,123,16,44,78,133,99",
-;;       :hai2 "33,61,30,72,43,58,92,128,7,88,112,129,115",
-;;       :hai1 "46,45,31,93,107,20,102,108,57,117,6,69,124",
-;;       :hai0 "119,34,39,0,106,105,100,38,5,49,135,120,41",})
-;; ((:hai3 "4s9m44p2s7p5m北5m3p2s中7s")
-;;  (:hai2 "9m7p8m1s26p6s発2m5s南発南")
-;;  (:hai1 "33p8m69s6m8s東6p西2m9p白")
-;;  (:hai0 "西9m1p1m998s1p2m4p中北2p"))
+;; (map read-string (clojure.string/split s #"," hai))
 (defn tenho->ha2ne2 [s]
   (->> (clojure.string/split s #",")
        (map read-string)
@@ -150,8 +146,8 @@
 
 (def nakis
   '(50281 18775 48169 46090 53759 5739 26959
-    48747 18432 55575 21504 45130 14442 6219
-    48745 25719 25951))
+          48747 18432 55575 21504 45130 14442 6219
+          48745 25719 25951))
 
 (defn pon-pai-convertor [n]
   (let [color-table '[m p s z]
@@ -161,41 +157,47 @@
       (list ('[東 南 西 北 白 発 中] (dec num)))
       (list color num))))
 
-;; 1m～9mを0～8、1p～9pを9～17、1sから9sを18～26、字牌を27～33で表現する。 
-(defn analyze-pon [bv]
-  (let [type7 (binary-vec-to-int (subvec bv 9))
-        pon-pai (quot type7 3)
-        naki (mod type7 3)
-        pon-pai' (pon-pai-convertor pon-pai)]
-    (with-meta (repeat 3 pon-pai')
-      {:kind :pon})))
-
-; (18775 53759 26959 55575 25719 25951)
-
+;;(map analyze-naki '(18775 53759 26959 55575 25719 25951))
 (defn analyze-ti- [bv]
   (let [type6 (binary-vec-to-int (subvec bv 10))
+        offset  (mapv (comp binary-vec-to-int vec) (partition 2 (subvec bv 3 9)))
         min-pai (quot type6 3)
-        color   (quot min-pai 7)
-        num     (mod  min-pai 7)
-        ti-pais (map
-                 #(pon-pai-convertor (+ % (* 9 color)))
-                 (range num (+ num 3)))]
+        ti-pai (* (+ (* 9 (quot min-pai 7)) (mod min-pai 7)) 4)
+        ti-pais (map #(pai-convertor
+                       (+ ti-pai (* % 4) (offset %)))
+                     '(0 1 2))
+        ]
     (with-meta ti-pais
       {:kind :ti-})))
 
+;; 1m～9mを0～8、1p～9pを9～17、1sから9sを18～26、字牌を27～33で表現する。 
+;; (analyze-naki 25642)
+;; ((p 8) (p 8) (p 8))
+(defn analyze-pon [bv]
+  (let [type7 (binary-vec-to-int (subvec bv 9))
+        pon-pai (* (quot type7 3) 4)
+        unused (binary-vec-to-int (subvec bv 5 7))
+        pon-pais (map #(pai-convertor (+ pon-pai %))
+                      (remove-x unused '(0 1 2 3)))
+        ]
+    (with-meta pon-pais
+      {:kind :pon})))
+
 (defn analyze-kakan [bv]
   (let [type7 (binary-vec-to-int (subvec bv 9))
-        pon-pai (pon-pai-convertor (quot type7 3))]
-    (with-meta (repeat 4 pon-pai)
+        kan-pai (* (quot type7 3) 4)
+        kan-pais (map #(pai-convertor (+ kan-pai %))
+                      '(0 1 2 3))
+        ]
+    (with-meta kan-pais
       {:kind :kan})))
 
-;; (analyze-naki 25642)
-;; ((発) (発) (発) (発))
-
-;; (18432 21504)
+;; (map analyze-naki '(18432 21504))
+;; (((s 1) (s 1) (s 1) (s 1)) ((s 4) (s 4) (s 4) (s 4)))
 (defn analyze-kan [bv]
   (let [type8 (binary-vec-to-int (subvec bv 8))
-        kan-pais (repeat 4 (pon-pai-convertor (quot type8 4)))
+        kan-pai (* (quot type8 4) 4)
+        kan-pais (map #(pai-convertor (+ kan-pai %)) '(0 1 2 3))
         from-who (binary-vec-to-int (subvec bv 0 2))]
     (with-meta kan-pais
       {:kind (if (= from-who 0) :ankan :kan)}
@@ -204,14 +206,14 @@
 (defn analyze-naki [n]
   (let [bv (to-binary-vec n)
         f (cond
-            (= 1 (bv 2)) analyze-ti-
-            (= 1 (bv 3)) analyze-pon
-            (= 1 (bv 4)) analyze-kakan
+            (= (bv 2) 1) analyze-ti-
+            (= (bv 3) 1) analyze-pon
+            (= (bv 4) 1) analyze-kakan
             :else        analyze-kan)]
     (f bv)))
 
 (def yaku
-  '[門前清自摸和 立直 一発 槍槓 嶺上開花
+  '[自摸 立直 一発 槍槓 嶺上開花
     海底摸月 河底撈魚 平和 断幺九 一盃口
     自風東 自風南 自風西 自風北
     場風東 場風南 場風西 場風北
@@ -265,7 +267,7 @@
          '((m 5) (m 6) (m 7) (m 8) (m 9) (m 1) (m 2) (m 3) (m 4) (m 5))))
   (is (= (take 10 (iterate next-pai' '(白)))
          '((白) (発) (中) (白) (発) (中) (白) (発) (中) (白)))))
-  
+
 
 
 ;; (take 3 ids)
@@ -275,20 +277,22 @@
                      {:keys [ba kyoku oya]
                       :or {ba '東 kyoku 1 oya 0} :as ba-data}]
   (let [[hu ten] (map read-string (clojure.string/split ten #","))
-        machi (->> machi read-string pai-convertor)
+        machi-num (read-string machi)
+        machi (pai-convertor machi-num)
         naki (when m (map (comp analyze-naki read-string)
                           (clojure.string/split m #",")))
         yaku (if yaku
                (->> (clojure.string/split yaku #",")
-                  (map read-string)
-                  (partition 2)
-                  (map convert-yaku))
+                    (map read-string)
+                    (partition 2)
+                    (map convert-yaku))
                (->> (clojure.string/split yakuman #",")
-                  (map read-string)
-                  (map #(vector % 13))
-                  (map convert-yaku)))
-        aux (filter (comp '#{天和 地和 両立直 立直 一発 嶺上開花 海底摸月 河底撈魚 槍槓 赤ドラ} second)
-                    yaku)
+                    (map read-string)
+                    (map #(vector % 13))
+                    (map convert-yaku)))
+        aux (empty-to-nil 
+             (filter (comp '#{天和 地和 両立直 立直 一発 自摸 嶺上開花 海底摸月 河底撈魚 槍槓} second)
+                     yaku))
         who (read-string who)
         fromWho (read-string fromWho)
         {:keys [pon ti- kan ankan]} (group-by (comp :kind meta) naki)]
@@ -296,7 +300,9 @@
                :kyoku kyoku
                :ie ('[東 南 西 北] (mod (- who oya) 4))
                :oya (= oya who)
-               :menzen (remove-x machi (tenho->ha2ne2 hai))
+               :menzen (map pai-convertor
+                            (remove-x machi-num
+                                      (map read-string (clojure.string/split hai #","))))
                :naki naki
                :pon (seq pon)
                :ti- (seq ti-)
@@ -320,12 +326,12 @@
 ;; ((0 1 2 2 3 3) (0) (0) (0 1 2 3) (0 1))
 (defn split-by [f lst]
   (map seq
-   (loop [[h & t :as l] (rest lst)
-          acc [(first lst)]
-          result []]
-     (cond (empty? l) (conj result acc)
-           (f h) (recur t [h] (conj result acc))
-           :else (recur t (conj acc h) result)))))
+       (loop [[h & t :as l] (rest lst)
+              acc [(first lst)]
+              result []]
+         (cond (empty? l) (conj result acc)
+               (f h) (recur t [h] (conj result acc))
+               :else (recur t (conj acc h) result)))))
 
 ;; (split-by' zero? '(0 1 2 2 3 3 0 0 0 1 2 3 0 1))
 ;; ((0 1 2 2 3 3) (0 0 0 1 2 3) (0 1))
@@ -401,16 +407,16 @@
  (= (split-by
      (=c :INIT)
      '(:INIT :AGARI
-       :INIT :AGARI :AGARI
-       :INIT :RYUUKYOKU
-       :INIT :AGARI))
+             :INIT :AGARI :AGARI
+             :INIT :RYUUKYOKU
+             :INIT :AGARI))
     '((:INIT :AGARI)
       (:INIT :AGARI :AGARI)
       (:INIT :RYUUKYOKU)
       (:INIT :AGARI))))
 
 
-  ;; 34種類 136枚
+;; 34種類 136枚
 (clojure.test/testing "pai-convertor"
   (clojure.test/is (= '(m 9) (pai-convertor 35)))
   (clojure.test/is (= '(p 2) (pai-convertor 43)))
@@ -459,7 +465,7 @@
         [me tenho] ((juxt calc-by-myself calc-by-tenho) agari-data)]
     (if (= me tenho)
       (do ;;(println "PASS:" s me)
-          true)
+        true)
       (do (println " FAIL:" s me tenho agari-data) false))))
 
 ;; (defn agari-100-test []
@@ -477,14 +483,13 @@
    (fn [acc result]
      (when (zero? (mod (acc :test) 500))
        (println acc))
-      (update
-       (if result
-         (update acc :pass inc)
-         (update acc :fail inc))
-       :test inc))
+     (update
+      (if result
+        (update acc :pass inc)
+        (update acc :fail inc))
+      :test inc))
    {:test 0, :pass 0, :fail 0}
    (pmap tenho-test agari-data-list)))
-
 
 ;;(def agari-data100 (take 100 (mapcat get-agari ids)))
 ;; (defn monthly-test [month-str]
@@ -502,22 +507,29 @@
   (let [agaris (get-agari id)]
     (agari-test agaris)))
 
-
-(map agari->str (get-agari "2014010100gm-00a9-0000-2a19cc5b"))
-("345p22456s東東東"
- "44m234p"
- "22299m"
- "456m567789p22678s"
- "22789p東東東"
- "567m23455678p234s"
- "567789m567p11678s"
- "678m11555p234s白白白")
-
-
 (defn agari->str [agari]
   (-> (get-in agari [:orig :hai])
       tenho->ha2ne2
       to-str))
 
+(defn tenho-agari->problem-str [{:keys [:hu' :ten' :yaku' :aux :ba :kyoku :ie :dora :ura-dora] :as agari}]
+  (let [problem (str (hand-to-str agari)
+                     ":" ba kyoku "局" ie "家"
+                     (when aux (clojure.string/join "" (map (comp str second) aux)))
+                     "ドラ" (to-str dora)
+                     (when ura-dora (str "裏ドラ" (to-str ura-dora)))
+                     )]
+    {:problem problem
+     :hu hu' :ten ten' :yaku yaku'
+     :answer  (first (nan-ten? problem))}))
 
-;; {:test 8, :pass 8, :fail 0}
+(clojure.string/join ""  (extract-by agari-sample [:ba :kyoku]))
+
+(def agari-sample '{:ba 東, :kyoku 1, :ie 北, :oya false, :menzen ((p 3) (p 4) (p 5) (s 2) (s 2) (s 4) (s 5) (東) (東) (東)), :naki (((m 3) (m 4) (m 5))), :pon nil, :ti- (((m 3) (m 4) (m 5))), :kan nil, :ankan nil, :dora ((東) (p 9)), :ura-dora nil, :tumo nil, :ron (s 6), :yaku' ((1 場風東) (3 ドラ) (1 赤ドラ)), :hu' 30, :ten' 8000, :aux nil, :orig {:who "3", :hai "47,50,52,76,79,87,90,92,108,110,111", :fromWho "2", :ba "0,1", :doraHai "120,66", :m "8647", :yaku "14,1,52,3,54,1", :machi "92", :ten "30,8000,1", :sc "250,0,250,0,240,-80,250,90"}})
+
+
+
+(clojure.pprint/pprint (map tenho-agari->problem-str (get-agari "2014010100gm-00a9-0000-2a19cc5b")))
+
+(get-agari "2014010100gm-00a9-0000-2a19cc5b")
+
