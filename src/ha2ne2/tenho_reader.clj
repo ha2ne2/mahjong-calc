@@ -1,4 +1,4 @@
-(ns ha2ne2.mj-analyze
+(ns ha2ne2.tenho-reader
   (:require
    [clojure.xml :as xml]
    [clojure.zip :as z]
@@ -9,9 +9,11 @@
 
 (use 'clojure.test)
 
+;; [str] -> [str]
 (defn ton-nan-filter [col]
   (filter (partial re-find #"四鳳南") col))
 
+;; [str] -> [id]
 (defn get-ids [col]
   (mapv (fn [line]
           (let [split-data (clojure.string/split line #" \| ")
@@ -26,15 +28,18 @@
 ;; (def ids (get-ids data-list))
 ;; (def id (first ids))
 
-;; (def file-names 
-;;   (-> (slurp (jio/resource "gz2/file_names.txt"))
-;;       (clojure.string/split #"\r\n")))
+(def file-names
+  (-> (slurp (jio/resource "index/file_names.txt"))
+      (clojure.string/split #"\r\n")))
 
+;; (get-ids-from-file (file-names 1))
+;; ["2014010200gm-00a9-0000-98e3445a" "2014010200gm-00a9-0000-444fede6" ...
 (defn get-ids-from-file [file-name]
-  (-> (slurp (jio/resource file-name))
+  (-> (slurp (jio/resource (str "index/" file-name)))
       (clojure.string/split #"\r\n")
       ton-nan-filter
       get-ids))
+
 
 (defn sec-to-show [n]
   (clojure.pprint/cl-format nil "~2'0d:~2'0d:~2'0d"
@@ -80,8 +85,9 @@
 (defn extract-date [id]
   (->> id (re-find #"20(1\d\d\d)") second))
 
-;; (def monthly-files
-;;   (group-by extract-date file-names))
+;; {"1404" ["scc20140401.html" "scc20140402.html" ...
+(def monthly-files
+  (group-by extract-date file-names))
 
 (defn get-path-from-id [id]
   (str (->> id (re-find #"20(1\d\d\d)") second) "/"))
@@ -213,7 +219,7 @@
     (f bv)))
 
 (def yaku
-  '[自摸 立直 一発 槍槓 嶺上開花
+  '[門前自摸 立直 一発 槍槓 嶺上開花
     海底摸月 河底撈魚 平和 断幺九 一盃口
     自風東 自風南 自風西 自風北
     場風東 場風南 場風西 場風北
@@ -279,6 +285,9 @@
   (let [[hu ten] (map read-string (clojure.string/split ten #","))
         machi-num (read-string machi)
         machi (pai-convertor machi-num)
+        menzen (map pai-convertor
+                    (remove-x machi-num
+                              (map read-string (clojure.string/split hai #","))))
         naki (when m (map (comp analyze-naki read-string)
                           (clojure.string/split m #",")))
         yaku (if yaku
@@ -291,7 +300,7 @@
                     (map #(vector % 13))
                     (map convert-yaku)))
         aux (empty-to-nil 
-             (filter (comp '#{天和 地和 両立直 立直 一発 自摸 嶺上開花 海底摸月 河底撈魚 槍槓} second)
+             (filter (comp '#{天和 地和 両立直 立直 一発 嶺上開花 海底摸月 河底撈魚 槍槓} second)
                      yaku))
         who (read-string who)
         fromWho (read-string fromWho)
@@ -300,10 +309,9 @@
                :kyoku kyoku
                :ie ('[東 南 西 北] (mod (- who oya) 4))
                :oya (= oya who)
-               :menzen (map pai-convertor
-                            (remove-x machi-num
-                                      (map read-string (clojure.string/split hai #","))))
+               :menzen menzen
                :naki naki
+               :aka (map first (filter (comp :red meta) (concat menzen (list machi) (flatten1 naki))))
                :pon (seq pon)
                :ti- (seq ti-)
                :kan (seq kan)
@@ -383,26 +391,6 @@
 (defn get-agari' [path id]
   (get-agari (str path id)))
 
-;; (convert-agari (first raw-agari-data) '{:ba 東 :kyoku 0 :oya 0})
-
-;; {:ba 東, :kyoku 0, :ie 北, :oya false, :menzen ((m 4) (m 4) (m 5) (m 5) (m 5) (p 2) (p 3) (p 4) (s 2) (s 2) (s 2) (s 3) (s 4) (s 5)), :naki nil, :pon nil, :ti- nil, :kan nil, :ankan nil, :dora ((p 5)), :ura-dora nil, :yaku' ((1 門前清自摸和) (1 断幺九) (1 赤ドラ)), :hu' 30, :ten' 4000, :aux ((1 門前清自摸和))}
-
-(def raw-agari-data '({:who "3", :hai "13,15,16,17,18,40,44,48,77,78,79,83,87,91", :fromWho "3", :ba "0,0", :doraHai "54", :yaku "0,1,8,1,54,1", :machi "18", :ten "30,4000,0", :sc "250,-20,250,-10,250,-10,250,40"} {:who "3", :hai "1,2,5,6,8,10,36,39,77,80,83,84,87,88", :fromWho "1", :ba "0,0", :doraHai "81", :yaku "7,1,9,1,52,2,54,1", :machi "1", :ten "30,8000,1", :sc "230,0,240,-80,240,0,290,80"} {:who "2", :hai "6,8,15,18,21,24,41,43,59,61,65,79,81,84", :fromWho "0", :ba "0,0", :doraHai "54", :yaku "7,1,8,1,52,1", :machi "59", :ten "30,5800,0", :sc "230,-58,160,0,240,58,370,0"} {:who "0", :hai "25,30,34,46,47,52,58,62,75,76,80,81,85,91", :fromWho "0", :ba "1,1", :doraHai "103", :doraHaiUra "7", :yaku "1,1,0,1,7,1,54,1,53,0", :machi "80", :ten "20,5200,0", :sc "162,65,160,-14,298,-27,370,-14"} nil nil {:who "2", :hai "54,57,61,84,89,92,122,123", :fromWho "3", :ba "2,1", :doraHai "111", :m "14442,45130", :yaku "12,1", :machi "84", :ten "30,1000,0", :sc "277,0,126,0,251,26,336,-16"} {:who "2", :hai "8,9,10,24,29,34,58,60,67,84,87,92,96,103", :fromWho "3", :ba "0,1", :doraHai "69", :doraHaiUra "20", :yaku "1,1,53,1", :machi "67", :ten "40,2600,0", :sc "277,0,126,0,267,36,320,-26"} {:who "0", :hai "17,21,26,33,34,83,86,89,93,94,95,128,130,131", :fromWho "0", :ba "0,0", :doraHai "76", :yaku "0,1,19,1,52,1", :machi "93", :ten "40,5200,0", :sc "277,52,126,-13,303,-26,294,-13"} {:who "0", :hai "5,7,9,13,16,21,26,30,45,51,53,56,63,66", :fromWho "1", :ba "0,0", :doraHai "90", :owari "368,47.0,74,-43.0,277,-12.0,281,8.0", :yaku "7,1,8,1,54,1", :machi "53", :ten "30,3900,0", :sc "329,39,113,-39,277,0,281,0"}))
-
-
-;; (def agari-samples (get-agari id))
-(def agari-sample
-  {:who "2",
-   :hai "54,57,61,84,89,92,122,123",
-   :fromWho "3",
-   :ba "2,1",
-   :doraHai "111",
-   :m "14442,45130",
-   :yaku "12,1",
-   :machi "84",
-   :ten "30,1000,0",
-   :sc "277,0,126,0,251,26,336,-16"})
-
 (clojure.test/is
  (= (split-by
      (=c :INIT)
@@ -442,12 +430,6 @@
   (clojure.test/is (= (analyze-naki 53759) '((s 4) (s 5) (s 6))))
   (clojure.test/is (= (analyze-naki 26959) '((p 2) (p 3) (p 4)))))
 
-(def agari-sample 
-  '{:ba 東, :kyoku 1, :ie 北, :oya false,
-    :menzen ((m 4) (m 4) (m 5) (m 5) (m 5) (p 2) (p 3) (p 4) (s 2) (s 2) (s 2) (s 3) (s 4) (s 5)),
-    :naki nil, :pon nil, :ti- nil, :kan nil, :ankan nil,
-    :dora ((p 5)), :ura-dora nil, :yaku "0,1,8,1,54,1", :hu' 30, :ten' 4000})
-
 (defn extract-by [m keys]
   (map #(% m) keys))
 
@@ -468,16 +450,6 @@
         true)
       (do (println " FAIL:" s me tenho agari-data) false))))
 
-;; (defn agari-100-test []
-;;   (reduce (fn [acc agari-data]
-;;             (update
-;;              (if (tenho-test agari-data)
-;;                (update acc :pass inc)
-;;                (update acc :fail inc))
-;;              :test inc))
-;;           {:test 0, :pass 0, :fail 0}
-;;           agari-data100))
-
 (defn agari-test [agari-data-list]
   (reduce
    (fn [acc result]
@@ -491,17 +463,29 @@
    {:test 0, :pass 0, :fail 0}
    (pmap tenho-test agari-data-list)))
 
-;;(def agari-data100 (take 100 (mapcat get-agari ids)))
-;; (defn monthly-test [month-str]
-;;   (let [files  (monthly-files month-str)
-;;         ids    (mapcat get-ids-from-file files)
-;;         agaris (mapcat #(get-agari' (str month-str "/") %) ids)]
-;;     (agari-test agaris)))
+(defn agari-100-test []
+  (let [file (first (monthly-files "1401"))
+        ids (get-ids-from-file file)
+        agaris (take 100 (mapcat #(get-agari' "1401/" %) ids))]
+    (agari-test agaris)))
 
-;; (defn year-test []
-;;   (let [ids    (mapcat get-ids-from-file file-names)
-;;         agaris (mapcat #(get-agari' (get-path-from-id %) %) ids)]
-;;     (agari-test agaris)))
+(defn one-day-test []
+  (let [file (first (monthly-files "1401"))
+        ids (get-ids-from-file file)
+        agaris (mapcat #(get-agari' "1401/" %) ids)]
+    (agari-test agaris)))
+
+;; (monthly-test "1401")
+(defn monthly-test [month-str]
+  (let [files  (monthly-files month-str)
+        ids    (mapcat get-ids-from-file files)
+        agaris (mapcat #(get-agari' (str month-str "/") %) ids)]
+    (agari-test agaris)))
+
+(defn year-test []
+  (let [ids    (mapcat get-ids-from-file file-names)
+        agaris (mapcat #(get-agari' (get-path-from-id %) %) ids)]
+    (agari-test agaris)))
 
 (defn xml-file-test [id]
   (let [agaris (get-agari id)]
@@ -523,13 +507,4 @@
      :hu hu' :ten ten' :yaku yaku'
      :answer  (first (nan-ten? problem))}))
 
-(clojure.string/join ""  (extract-by agari-sample [:ba :kyoku]))
-
-(def agari-sample '{:ba 東, :kyoku 1, :ie 北, :oya false, :menzen ((p 3) (p 4) (p 5) (s 2) (s 2) (s 4) (s 5) (東) (東) (東)), :naki (((m 3) (m 4) (m 5))), :pon nil, :ti- (((m 3) (m 4) (m 5))), :kan nil, :ankan nil, :dora ((東) (p 9)), :ura-dora nil, :tumo nil, :ron (s 6), :yaku' ((1 場風東) (3 ドラ) (1 赤ドラ)), :hu' 30, :ten' 8000, :aux nil, :orig {:who "3", :hai "47,50,52,76,79,87,90,92,108,110,111", :fromWho "2", :ba "0,1", :doraHai "120,66", :m "8647", :yaku "14,1,52,3,54,1", :machi "92", :ten "30,8000,1", :sc "250,0,250,0,240,-80,250,90"}})
-
-
-
-(clojure.pprint/pprint (map tenho-agari->problem-str (get-agari "2014010100gm-00a9-0000-2a19cc5b")))
-
-(get-agari "2014010100gm-00a9-0000-2a19cc5b")
-
+'ok
