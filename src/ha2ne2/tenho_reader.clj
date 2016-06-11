@@ -11,7 +11,7 @@
 
 ;; [str] -> [str]
 (defn ton-nan-filter [col]
-  (filter (partial re-find #"四鳳南") col))
+  (filter (partial re-find #"四鳳南喰赤") col))
 
 ;; [str] -> [id]
 (defn get-ids [col]
@@ -39,7 +39,6 @@
       (clojure.string/split #"\r\n")
       ton-nan-filter
       get-ids))
-
 
 (defn sec-to-show [n]
   (clojure.pprint/cl-format nil "~2'0d:~2'0d:~2'0d"
