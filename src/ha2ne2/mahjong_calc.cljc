@@ -66,9 +66,6 @@
 (def yaochu (clojure.set/union routou jihai))
 (def pai-order (into {} (map-indexed #(vector %2 %) '(m p s 東 南 西 北 白 発 中))))
 
-
-
-
 (defn koutu-generator [n]
   (fn [pairs]
     (and (count= n pairs) (apply = pairs))))
@@ -106,8 +103,13 @@
             ((if (= (count s) 1)
                (comp list list symbol)  ; jihai 
                num-to-list) s))] ; suuhai
-    (mapcat conv (re-seq #"\d+\w|\W" s))))
-
+    (if (= (last s) \')
+      (with-meta (mapcat conv (re-seq #"\d+\w|\W" (remove-last-char s)))
+        {:kind :ankan})
+      (mapcat conv (re-seq #"\d+\w|\W" s)))))
+  
+    
+  
 ;; (concat (mapcat num-to-list (re-seq #"\d+\w" s)) 
 ;;         (map #(list (symbol %)) (re-seq #"\W" s)))) ; jihai 
 
@@ -151,9 +153,12 @@
         
         ;; 立直 一発 嶺上開花 海底撈月 河底撈魚
         aux (concat
-             (when (re-find #"立直" info) '((1 立直)))
+             (when (re-find #"立直" info)
+               (if (re-find #"両立直" info)
+                 '((2 両立直)) '((1 立直))))
              (when (re-find #"一発" info) '((1 一発)))
              (when (re-find #"嶺上" info) '((1 嶺上開花)))
+             (when (re-find #"槍槓" info) '((1 槍槓)))
              (when (re-find #"海底" info) '((1 海底撈月)))
              (when (re-find #"河底" info) '((1 河底撈魚))))
         ]
@@ -233,7 +238,9 @@
                   (recur t (conj buf h) result)
                   (recur t [h]
                          (str result (apply str (map second buf)) prev-color))))))]
-    (rec hand [] "")))
+    (str (rec hand [] "")
+         (when (= :ankan ((comp :kind meta) hand))
+           "'"))))
 
 (defn random-hand-str [] (to-str (random-take 14 all-pais)))
 
@@ -903,6 +910,3 @@
                       :TRY ~try :SEC ~elapsed  :TRY/SEC ~(int (/ try elapsed)))))))))
 
 'ok
-
-
-

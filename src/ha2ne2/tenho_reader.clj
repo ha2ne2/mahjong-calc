@@ -40,6 +40,7 @@
       ton-nan-filter
       get-ids))
 
+
 (defn sec-to-show [n]
   (clojure.pprint/cl-format nil "~2'0d:~2'0d:~2'0d"
                             (int (/ n 3600))
@@ -280,7 +281,8 @@
 ;; (time (flatten (take 3 (map get-agari ids))))
 (defn convert-agari [{:keys [hai doraHai doraHaiUra ten yaku yakuman m who fromWho machi] :as agari-data}
                      {:keys [ba kyoku oya]
-                      :or {ba '東 kyoku 1 oya 0} :as ba-data}]
+                      :or {ba '東 kyoku 1 oya 0} :as ba-data}
+                     id]
   (let [[hu ten] (map read-string (clojure.string/split ten #","))
         machi-num (read-string machi)
         machi (pai-convertor machi-num)
@@ -327,6 +329,7 @@
                :ten' ten
                :aux aux
                :orig agari-data
+               :id id
                )))
 
 ;; (split-by zero? '(0 1 2 2 3 3 0 0 0 1 2 3 0 1))
@@ -381,7 +384,7 @@
                          :AGARI (:attrs %)))
                  (split-by number?)))
           (convert [data]
-            (mapcat (fn [ba-info agaris] (map #(convert-agari % ba-info) agaris))
+            (mapcat (fn [ba-info agaris] (map #(convert-agari % ba-info id) agaris))
                     (ba-conv (map first data))
                     (map rest data)))]
     (convert (parse id))))
@@ -447,7 +450,7 @@
     (if (= me tenho)
       (do ;;(println "PASS:" s me)
         true)
-      (do (println " FAIL:" s me tenho agari-data) false))))
+      (do (println "\n" (agari-data :id) "\n FAIL:" s me tenho agari-data) false))))
 
 (defn agari-test [agari-data-list]
   (reduce
@@ -490,12 +493,7 @@
   (let [agaris (get-agari id)]
     (agari-test agaris)))
 
-(defn agari->str [agari]
-  (-> (get-in agari [:orig :hai])
-      tenho->ha2ne2
-      to-str))
-
-(defn tenho-agari->problem-str [{:keys [:hu' :ten' :yaku' :aux :ba :kyoku :ie :dora :ura-dora] :as agari}]
+(defn agari->problem [{:keys [:hu' :ten' :yaku' :aux :ba :kyoku :ie :dora :ura-dora] :as agari}]
   (let [problem (str (hand-to-str agari)
                      ":" ba kyoku "局" ie "家"
                      (when aux (clojure.string/join "" (map (comp str second) aux)))
@@ -504,6 +502,20 @@
                      )]
     {:problem problem
      :hu hu' :ten ten' :yaku yaku'
-     :answer  (first (nan-ten? problem))}))
+     :answer (first (nan-ten? problem))}))
+
+(defn agari-100-test2 []
+  (let [files (monthly-files "1401")
+        ids (mapcat get-ids-from-file files)
+        agaris (take 1000 (mapcat #(get-agari' "1401/" %) ids))]
+    (mapc-with-time
+     (fn [agari]
+       (let [p (agari->problem agari)]
+         (when-not (= (extract-by p [:hu :ten]) [(get-in p [:answer :符]) (get-in p [:answer :点])])
+           (println "\n" p))))
+     agaris 100)))
+
+
+
 
 'ok
