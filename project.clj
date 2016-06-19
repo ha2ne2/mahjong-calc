@@ -14,13 +14,12 @@
   :profiles {:resource-paths ["dummy-data"]
              :uberjar {:aot :all}}
   :cljsbuild {
-              :builds [{
-        ; The path to the top-level ClojureScript source directory:
-        :source-paths ["src"]
-        ; The standard ClojureScript compiler options:
-        ; (See the ClojureScript compiler documentation for details.)
-        :compiler {
-          :output-to "main.js"  ; default: target/cljsbuild-main.js
-          :optimizations :whitespace
-          :pretty-print true}}]}
+        :builds [{:id "mj-game"
+                  :source-paths ["src/ha2ne2" "src/mj-game"]
+                  :compiler {:output-to "mj_game.js"
+                             :optimizations :whitespace}}
+                 {:id "mj-calc"
+                  :source-paths ["src/ha2ne2" "src/mj"]
+                  :compiler {:output-to "mj_calc.js"
+                             :optimizations :advanced}}]}
   )

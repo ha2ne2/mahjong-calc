@@ -29,58 +29,16 @@
 ;; (def id (first ids))
 
 (def file-names
-  (-> (slurp (jio/resource "index/file_names.txt"))
-      (clojure.string/split #"\r\n")))
+  (-> (slurp (jio/resource "html/index.txt"))
+      (clojure.string/split #"\n")))
 
 ;; (get-ids-from-file (file-names 1))
 ;; ["2014010200gm-00a9-0000-98e3445a" "2014010200gm-00a9-0000-444fede6" ...
 (defn get-ids-from-file [file-name]
-  (-> (slurp (jio/resource (str "index/" file-name)))
+  (-> (slurp (jio/resource (str "html/" file-name)))
       (clojure.string/split #"\r\n")
       ton-nan-filter
       get-ids))
-
-
-(defn sec-to-show [n]
-  (clojure.pprint/cl-format nil "~2'0d:~2'0d:~2'0d"
-                            (int (/ n 3600))
-                            (int (mod (/ n 60) 60))
-                            (int (mod (mod n 3600) 60))))
-
-;; (mapc-with-time
-;;  (fn [x]
-;;    (Thread/sleep 100)
-;;    (println x))
-;;  (range 1000) 10)
-
-(defn mapc-with-time
-  ([f coll]
-   (mapc-with-time f coll 100))
-  ([f coll interval]
-   (let [start (System/currentTimeMillis)
-         len (count coll)]
-     (loop [[head & tail :as col] coll
-            i 1
-            prev start
-            hist []]
-       (when-not (empty? col)
-         (f head)
-         (let [current (System/currentTimeMillis)
-               current-elapse (- current prev)
-               hist (conj hist current-elapse)
-               hist (vec (if (> (count hist) 50) (rest hist) hist))
-               per  (/ (reduce + hist) (count hist) 1000)
-               elapsed (int (/ (- current start) 1000))
-               remain (int (* per (- len i)))
-               total  (int (* per len))
-               ]
-                                        ;(println hist)
-           (when (zero? (mod i interval))
-             (println "   Per   Elapse   Remain    Total Count" )
-             (clojure.pprint/cl-format true "~6,2f ~{~6d ~}~d/~d~%"
-                                       per (map sec-to-show (list elapsed remain total)) i len))
-           (recur tail (inc i) current hist)))))))
-
 
 (defn extract-date [id]
   (->> id (re-find #"20(1\d\d\d)") second))
@@ -90,9 +48,9 @@
   (group-by extract-date file-names))
 
 (defn get-path-from-id [id]
-  (str (->> id (re-find #"20(1\d\d\d)") second) "/"))
+  (str (extract-date id) "/"))
 
-(defn download-xml' [id]
+(defn download-xml [id]
   (let [file-name (str "resources/" (extract-date id) "/" id ".xml")]
     (when-not (.exists (clojure.java.io/as-file file-name))
       (println id)
@@ -101,7 +59,11 @@
         (catch Exception e
           (print e)
           (Thread/sleep 5000)
-          (download-xml' id))))))
+          (download-xml id))))))
+
+(defn start-download []
+  (let [ids (mapcat get-ids-from-file file-names)]
+    (mapc' download-xml ids 20)))
 
 (defn xml-parse [s]
   (xml/parse (java.io.ByteArrayInputStream. (.getBytes s))))
@@ -504,18 +466,26 @@
      :hu hu' :ten ten' :yaku yaku'
      :answer (first (nan-ten? problem))}))
 
-(defn agari-100-test2 []
-  (let [files (monthly-files "1401")
-        ids (mapcat get-ids-from-file files)
-        agaris (take 1000 (mapcat #(get-agari' "1401/" %) ids))]
-    (mapc-with-time
-     (fn [agari]
-       (let [p (agari->problem agari)]
-         (when-not (= (extract-by p [:hu :ten]) [(get-in p [:answer :符]) (get-in p [:answer :点])])
-           (println "\n" p))))
-     agaris 100)))
+(defn add-path-to-id [id]
+  (str (extract-date id) "/" id))
 
+(defn convert [agari]
+  (with-open [fout (clojure.java.io/writer "problems.txt" :append true :encoding "UTF-8")]
+    (.write fout (str (:problem (agari->problem agari)) "\n"))))
 
+(defn start-convert []
+  (let [ids (mapcat get-ids-from-file file-names)]
+    (mapc' convert (take 1000 (mapcat (comp get-agari add-path-to-id) ids)))))
 
+;; (defn agari-100-test2 []
+;;   (let [files (monthly-files "1401")
+;;         ids (mapcat get-ids-from-file files)
+;;         agaris (take 1000 (mapcat #(get-agari' "1401/" %) ids))]
+;;     (mapc-with-time
+;;      (fn [agari]
+;;        (let [p (agari->problem agari)]
+;;          (when-not (= (extract-by p [:hu :ten]) [(get-in p [:answer :符]) (get-in p [:answer :点])])
+;;            (println "\n" p))))
+;;      agaris 100)))
 
 'ok

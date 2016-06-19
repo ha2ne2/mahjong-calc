@@ -893,6 +893,19 @@
     (str (hand-to-html (to-list s)) "<br><br>"
          (apply str (interpose "<br>" figures)))))
 
+;; (nan-ten? "34578m345p33345s 6m':東4局南家立直ドラ中裏ドラ発")
+;; ({:手 "345m678m345p345s33s", :親/子 子, :符 20, :飜 6, :点 12000, :役 ((1 立直) (1 断么九) (1 平和) (1 門前自摸) (2 三色同順))})
+
+;; (子 20 12000)
+(defn choices-generator [s]
+  (let [{ten :点} (first (nan-ten? s))]
+    (shuffle 
+     (conj (repeatedly 3 #(calc-ten (first (random-take 1 [25 30 40 50 60]))
+                                    (inc (rand-int 4))
+                                    (first (random-take 1 [true false]))
+                                    (first (random-take 1 [true false]))))
+           ten))))
+
 #?(:clj
    (defn tenho-challenge []
      (letfn [(challenge [try]
@@ -910,3 +923,6 @@
                       :TRY ~try :SEC ~elapsed  :TRY/SEC ~(int (/ try elapsed)))))))))
 
 'ok
+
+
+

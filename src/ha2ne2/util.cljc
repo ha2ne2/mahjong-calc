@@ -180,10 +180,19 @@
 ;; (random-take 4 '(0 1 2 3))
 ;; => (2 0 1 3)
 (defn random-take [n lst]
-  (loop [n n lst lst acc nil]
-    (if (<= n 0) acc
-        (let [rnd (int (rand (count lst)))]
-          (recur (dec n) (remove-nth rnd lst) (cons (nth lst rnd) acc))))))
+  (let [len (count lst)]
+    (second (reduce
+             (fn [[acc result] _]
+               (loop [m (rand-int len)]
+                 (if (acc m)
+                   (recur (rand-int len))
+                   [(conj acc m) (conj result (nth lst m))])))
+             [#{} ()] (range n)))))
+;; (defn random-take [n lst]
+;;   (loop [n n lst lst acc nil]
+;;     (if (<= n 0) acc
+;;         (let [rnd (int (rand (count lst)))]
+;;           (recur (dec n) (remove-nth rnd lst) (cons (nth lst rnd) acc))))))
 
 (defn iter-perm [v]
   (let [len (count v)
@@ -251,5 +260,61 @@
       false
       (every? #(and (ys %) (<= (xs %) (ys %))) (keys xs)))))
 
+;; (sec-to-str 32213)
+;; "08:56:53"
+#?(:clj
+   (do
+     (defn sec-to-str [n]
+       (clojure.pprint/cl-format nil "~2'0d:~2'0d:~2'0d"
+                                 (int (/ n 3600))
+                                 (int (mod (/ n 60) 60))
+                                 (int (mod (mod n 3600) 60))))
+;; (mapc-with-time
+;;  (fn [x]
+;;    (Thread/sleep 100)
+;;    (println x))
+;;  (range 1000) 10)
 
+   (defn mapc'
+     ([f coll]
+      (mapc' f coll 100))
+     ([f coll interval]
+      (let [start (System/currentTimeMillis)
+            len (count coll)]
+        (loop [[head & tail :as col] coll
+               i 1
+               prev start
+               hist []]
+          (when-not (empty? col)
+            (f head)
+            (let [current (System/currentTimeMillis)
+                  current-elapse (- current prev)
+                  hist (conj hist current-elapse)
+                  hist (vec (if (> (count hist) 50) (rest hist) hist))
+                  per  (/ (reduce + hist) (count hist) 1000)
+                  elapsed (int (/ (- current start) 1000))
+                  remain (int (* per (- len i)))
+                  total  (int (* per len))
+                  ]
+                                        ;(println hist)
+              (when (zero? (mod i interval))
+                (println "   Per   Elapse   Remain    Total Count" )
+                (clojure.pprint/cl-format true "~6,2f ~{~6d ~}~d/~d~%"
+                                          per (map sec-to-str (list elapsed remain total)) i len))
+              (recur tail (inc i) current hist)))))))))
 
+(defn separate-cars-rests [lsts]
+  (loop [cs [] rs [] [[c & r] & tail :as lsts] lsts]
+    (if (empty? lsts) [cs rs]
+        (recur (conj cs c) (conj rs r) tail))))
+
+;; •Ô‚è’l‚ğW‚ß‚È‚¢map
+(defn mapc [f & lsts]
+  (loop [lsts lsts]
+    (let [[cars rests] (separate-cars-rests lsts)]
+      (if (some empty? lsts)
+        nil
+        (do (apply f cars)
+            (recur rests))))))
+
+'ok
