@@ -112,7 +112,7 @@
        (let [curr (nth @current-problems @i)
              choices (calc/choices-generator curr)]
          (reset! current-answer ((comp str :点 first) (calc/nan-ten? curr)))
-         (set! (.-innerHTML buffer1) curr)
+         (set! (.-innerHTML buffer1) (str curr "<br>" (calc/hand-to-html (calc/to-list curr))))
          (mapc
           (fn [btn choice]
             (set! (.-innerHTML btn) choice)
