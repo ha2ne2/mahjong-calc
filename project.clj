@@ -15,9 +15,13 @@
              :uberjar {:aot :all}}
   :cljsbuild {
         :builds [{:id "mj-game"
-                  :source-paths ["src/ha2ne2" "src/mj-game"]
+                  :source-paths ["src/ha2ne2" "src/mj_game"]
                   :compiler {:output-to "mj_game.js"
                              :optimizations :whitespace}}
+                 {:id "mj-game-product"
+                  :source-paths ["src/ha2ne2" "src/mj_game"]
+                  :compiler {:output-to "mj_game.js"
+                             :optimizations :advanced}}
                  {:id "mj-calc"
                   :source-paths ["src/ha2ne2" "src/mj"]
                   :compiler {:output-to "mj_calc.js"

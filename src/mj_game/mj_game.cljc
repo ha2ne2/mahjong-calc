@@ -1,25 +1,20 @@
-#?(:clj 
-   (ns mj-game.mj-game
-     (:require [ha2ne2.util :refer [atom? Y flatten1 empty-to-nil f s strict-take iterate*
-                                    my-flatten map* repeat-cat =x with-key find-x remove-x
-                                    remove-xs intersection set-difference subset? remove-duplicate
-                                    find-duplicate count-if juxt* juxt-or juxt-cat remove-nth
-                                    random-take iter-perm permutations sfirst $ count= c-to-i s-to-i
-                                    =c find-if flip include? mapc]]
-               [ha2ne2.mahjong-calc :as calc]
-               [mj-game.problems :refer [problems]]))
-   :cljs
-   (ns mj-game.mj-game
-     (:require [ha2ne2.util :refer [atom? Y flatten1 empty-to-nil f s strict-take iterate*
-                                    my-flatten map* repeat-cat =x with-key find-x remove-x
-                                    remove-xs intersection set-difference subset? remove-duplicate
-                                    find-duplicate count-if juxt* juxt-or juxt-cat remove-nth
-                                    random-take iter-perm permutations sfirst $ count= c-to-i s-to-i
-                                    =c find-if flip include? mapc]]
-               [ha2ne2.mahjong-calc :as calc]
-               [mj-game.problems :refer [problems]]
-               [goog.events :as events]
-               [goog.dom :as dom])))
+(ns mj-game.mj-game
+  (:require
+   [ha2ne2.macros #?(:clj :refer :cljs :refer-macros) [ana-assoc if-let-it]]
+   [ha2ne2.util :refer [atom? Y flatten1 empty-to-nil f s strict-take iterate*
+                        my-flatten map* repeat-cat =x with-key find-x remove-x
+                        remove-xs intersection set-difference subset? remove-duplicate
+                        find-duplicate count-if juxt* juxt-or juxt-cat remove-nth
+                        random-take iter-perm permutations sfirst $ count= c-to-i s-to-i
+                        =c find-if flip include? mapc]]
+   [ha2ne2.mahjong-calc :as calc]
+   [mj-game.problems :refer [problems]]
+   #?@(:cljs
+       ([goog.events :as events]
+        [goog.dom :as dom]
+        [goog.dom.forms :as forms]
+        ))))
+
 
 ;; (def problems
 ;;   {
@@ -55,6 +50,20 @@
 
 
 
+(defn convert-answer [answer]
+  (let [hu (if-let-it (< (it-is (:符 answer)) 80)
+             it 80)
+        han (case (:飜 answer)
+              (4 5) 4
+              (6 7) 6
+              (8 9 10) 8
+              (11 12) 11
+              (if (<= 13 (:飜 answer))
+                13 (:飜 answer)))
+        ten (:点 answer)]
+    [hu han ten]))
+
+
 #?(:clj
    (defn game-start [problems]
      (loop [[p & ps] (random-take 5 problems)
@@ -75,7 +84,6 @@
          (println (str "YOUR SCORE IS " correct "/" 5))))))
 
 ;; 間違った問題をもう一度機能
-
 #?(:clj 
    (defn -main
      "I don't do a whole lot ... yet."
@@ -83,6 +91,9 @@
      (println "Hello, World!"))
    :cljs
    (do
+     (extend-type js/NodeList
+       ISeqable
+       (-seq [array] (array-seq array 0)))
      (enable-console-print!)
      (def current-problems (atom nil))
      (def current-answer (atom nil))
@@ -93,31 +104,35 @@
      (def wrong-num (atom 0))
      (def pbar (dom/getElement "pbar"))
      (def buffer1 (dom/getElement "buffer1"))
-     (def btns [(dom/getElement "ans1")
-                (dom/getElement "ans2")
-                (dom/getElement "ans3")
-                (dom/getElement "ans4")])
+     (def buffer2 (dom/getElement "buffer2"))
+     ;; (def btns [(dom/getElement "ans1")
+     ;;            (dom/getElement "ans2")
+     ;;            (dom/getElement "ans3")
+     ;;            (dom/getElement "ans4")])
+     (def ten-radio (.getElementsByName js/document "ten"))
      (def start-btn (dom/getElement "start"))
-
+     (def submit-btn (dom/getElement "submit"))
      (defn show-result []
        (set! (.-innerHTML buffer1)
              (str "YOUR SCORE IS " @correct-num "/" 5))
-       (mapc
-        (fn [btn choice]
-          (set! (.-innerHTML btn) "-")
-          (set! (.-disabled btn) true))
-        btns))
+       ;; (mapc
+       ;;  (fn [btn choice]
+       ;;    (set! (.-innerHTML btn) "-")
+       ;;    (set! (.-disabled btn) true))
+       ;;  btns)
+       )
 
      (defn show-current-problem []
        (let [curr (nth @current-problems @i)
              choices (calc/choices-generator curr)]
-         (reset! current-answer ((comp str :点 first) (calc/nan-ten? curr)))
+         (reset! current-answer (first (calc/nan-ten? curr)))
          (set! (.-innerHTML buffer1) (str curr "<br>" (calc/hand-to-html (calc/to-list curr))))
+         (set! (.-innerHTML buffer2) "")
          (mapc
-          (fn [btn choice]
-            (set! (.-innerHTML btn) choice)
-            (set! (.-disabled btn) false))
-          btns
+          (fn [radio choice]
+            (set! (.-value radio) choice)
+            (set! (.-nodeValue (.-nextSibling radio)) choice))
+          (seq ten-radio)
           choices)))
 
      (defn show-next-problem []
@@ -143,33 +158,34 @@
         (reset! wrong-num 0)
         (reset! i 0)
         (reset! revenge-mode false)
+        (set! (.-disabled submit-btn) false)
         (set! (.-value pbar) 0)
         (show-current-problem)))
-     
-     (mapc
-      (fn [btn]
-        (events/listen
-         btn "click"
-         (fn [event]
-           (println "button clicked" @current-answer)
-           (if (= (.-innerHTML btn) @current-answer)
+
+     (events/listen submit-btn "click"
+        (fn [event]
+          (println "button clicked" @current-answer)
+          (let [get-value (fn [name] (forms/getValueByName (dom/getElement "form1") name))
+                [hu han ten :as correct] (map str (convert-answer @current-answer))
+                [hu2 han2 ten2 :as answer] (map get-value ["hu" "han" "ten"])]
+            (println :correct correct :answer answer)
+            (if (= correct answer)
              (do
                (set! (-> buffer1 .-style .-backgroundColor) "#cccccc")
                (when (not @revenge-mode)
                  (swap! correct-num inc))
-               (show-next-problem))
+               (show-next-problem)) 
              (do
+               (set! (.-innerHTML buffer2)
+                     (str (first (calc/nan-ten? (nth @current-problems @i))) "<br>"
+                          (let [[s s2] (calc/hu-helper (calc/to-list (nth @current-problems @i)))]
+                               (str s "<br>" s2))))
                (when (not @revenge-mode)
                  (swap! wrong-num inc)
                  (swap! correct-num dec)) ; その後+1されるので
                (set! (-> buffer1 .-style .-backgroundColor) "red")
-               (swap! revenge-lst conj (nth @current-problems @i))
-               (mapc #(set! (.-disabled %) true)
-                     (filter #(not= (.-innerHTML %) @current-answer)
-                             btns)))))))
-      btns)
+               (swap! revenge-lst conj (nth @current-problems @i)))))))
 
-     (set! (.-disabled start-btn) false)
-     ))
+     (set! (.-disabled start-btn) false)))
 
 

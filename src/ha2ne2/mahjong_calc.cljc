@@ -686,10 +686,7 @@
              2 0)]
        (if debug-flag
          (list '(+ 副底 門前加符 刻子符 頭符 待ち符)
-               (list '+ hu-tei agari-hu koutu-hu atama-hu mati-hu)
-               minko
-               pon
-               figure)
+               (list '+ hu-tei agari-hu koutu-hu atama-hu mati-hu))
          (my-kiriage (+ hu-tei agari-hu koutu-hu atama-hu mati-hu)))
        ))))
 
@@ -810,6 +807,68 @@
                (map (comp show-figure add-info) figures hans hus)))))
 
 
+(defn hu-helper [lst]
+  (let [figures (figure-out lst)
+        hans (map nan-han? figures)
+        hus  (map nan-pu? figures)
+        hus2 (map #(nan-pu? % true) figures)]
+    (letfn [(add-info [figure [han yaku] hu hu2]
+              (let [dora-count (count-dora (figure :dora)
+                                           (concat (flatten1 (figure :figure))
+                                                   (flatten1 (figure :naki))))
+                    ura-dora-count (count-dora (figure :ura-dora)
+                                               (concat (flatten1 (figure :figure))
+                                                       (flatten1 (figure :naki))))
+                    aka-dora-count (count (figure :aka))
+                    yakuman-flag (some (comp (=c 13) first) yaku)
+                    yaku (concat
+                          (figure :aux)
+                          yaku
+                          (when (not yakuman-flag)
+                            (concat
+                             (when (some (comp (=c (figure :ba)) ffirst)
+                                         (concat (filter koutu? (figure :figure))
+                                                 (figure :naki)))
+                               '((1 場風牌)))
+                             (when (some (comp (=c (figure :ie)) ffirst)
+                                         (concat (filter koutu? (figure :figure))
+                                                 (figure :naki)))
+                               '((1 自風牌)))
+                             (when (not= dora-count 0) `((~dora-count ~'ドラ)))
+                             (when (not= ura-dora-count 0) `((~ura-dora-count ~'裏ドラ)))))
+                             (when (not= aka-dora-count 0) `((~aka-dora-count ~'赤ドラ)))
+                          )
+                    han (reduce + (map first yaku))
+                    yaku-lst (map second yaku)
+                    hu
+                    (if (find-x '平和 yaku-lst)
+                      (if (find-x '門前自摸 yaku-lst) 20 30) ; ピンフツモは20符
+                      (cond (kui-pinhu? figure) 30 ; 喰いピンフは30符
+                            (find-x '七対子 yaku-lst) 25
+                            :else hu))
+                    ten (calc-ten hu han (figure :oya) (figure :tumo))]
+                (assoc figure
+                       :han han
+                       :yaku yaku
+                       :hu hu
+                       :hu2 hu2
+                       :ten ten)
+                ))]
+      ((comp :hu2 first)
+       (sort-by (juxt :han :hu)
+                (flip compare)
+                (map add-info figures hans hus hus2)))
+      )))
+
+;;(hu-helper (to-list "111p234p345p345p22p"))
+;; ((+ 副底 門前加符 刻子符 頭符 待ち符) (+ 20 0 20 0 0))
+
+
+
+
+    
+
+
 
 (defn nan-ten? [str]
   (nan-ten?% (to-list str)))
@@ -878,6 +937,7 @@
                 (when tumo "'")))
          )))
 
+
 ;; (to-list "1123406m 789m 4444m' 1m")
 ;; {:ba 東, :kyoku 1, :honba 0, :ie 南, :dora nil, :ura-dora nil, :oya false, :aux (), :menzen ((m 1) (m 1) (m 2) (m 3) (m 4) (m 5) (m 6)), :naki (((m 7) (m 8) (m 9)) ((m 4) (m 4) (m 4) (m 4) ('))), :aka (m), :string "1123406m 789m 4444m' 1m", :ti- (((m 7) (m 8) (m 9))), :ankan (((m 4) (m 4) (m 4) (m 4))), :ron (m 1)}
 
@@ -896,15 +956,19 @@
 ;; (nan-ten? "34578m345p33345s 6m':東4局南家立直ドラ中裏ドラ発")
 ;; ({:手 "345m678m345p345s33s", :親/子 子, :符 20, :飜 6, :点 12000, :役 ((1 立直) (1 断么九) (1 平和) (1 門前自摸) (2 三色同順))})
 
+;; (choices-generator "34578m345p33345s 6m':東4局南家立直ドラ中裏ドラ発")
+;; (800 1200 1600 2400 3900 5800 8000 12000)
 ;; (子 20 12000)
 (defn choices-generator [s]
   (let [{ten :点} (first (nan-ten? s))]
-    (shuffle 
-     (conj (repeatedly 3 #(calc-ten (first (random-take 1 [25 30 40 50 60]))
-                                    (inc (rand-int 4))
-                                    (first (random-take 1 [true false]))
-                                    (first (random-take 1 [true false]))))
-           ten))))
+    (-> (reduce #(if (= 8 (count %)) (reduced %) (conj % %2))
+                #{ten} (repeatedly #(calc-ten (first (random-take 1 [25 30 40 50 60 70]))
+                                           (inc (rand-int 4))
+                                           (first (random-take 1 [true false]))
+                                           (first (random-take 1 [true false])))))
+        vec
+        sort)))
+
 
 #?(:clj
    (defn tenho-challenge []
@@ -923,6 +987,3 @@
                       :TRY ~try :SEC ~elapsed  :TRY/SEC ~(int (/ try elapsed)))))))))
 
 'ok
-
-
-

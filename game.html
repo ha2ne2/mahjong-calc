@@ -1,32 +1,73 @@
-
-
 <html>
   <head>
     <title>麻雀点数計算練習ソフト</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <style type="text/css">
+
+      #question td {
+      vertical-align: top;
+      width: 5em;
+      }     
+
+
+    </style>
+
   </head>
   <body>
-  <h1>麻雀点数計算練習ソフト</h1>
+  <h1>麻雀点数計算練習ソフト rev10</h1>
   <button id="start" disabled="true">開始</button><br><br>
 
 
-  <table>
-    <tr>
-      <td colspan="2">
-        <div style="width:100%;background:#cccccc;font-size:2em" id="buffer1">-</div>
-        <progress value="0" max="100" style="width:100%" id="pbar"
-                  style="color:red">
-      </td>
-    </tr>
-    <tr>
-      <td><button style="width:10em" id="ans1" disabled="true">-</button></td>
-      <td><button style="width:10em" id="ans2" disabled="true">-</button></td>
-    </tr>
-    <tr>
-      <td><button style="width:10em" id="ans3" disabled="true">-</button></td>
-      <td><button style="width:10em" id="ans4" disabled="true">-</button></td>
-    </tr>
-  </table>
+  <div style="width:100%;background:#cccccc;font-size:2em" id="buffer1">-</div>
+  <progress value="0" max="100" style="width:100%" id="pbar" style="color:red"></progress>
+  <div id="buffer2"></div>
+
+  <br>
+
+  <div id="question">
+    <table>
+      <tr>
+        <td>符</td><td>翻</td><td>点</td>
+      </tr>
+      <tr>
+        <td>
+          <form id="form1">
+            <input type="radio" name="hu" value="20">20<br>
+            <input type="radio" name="hu" value="25">25<br>
+            <input type="radio" name="hu" value="30">30<br>
+            <input type="radio" name="hu" value="40">40<br>
+            <input type="radio" name="hu" value="50">50<br>
+            <input type="radio" name="hu" value="60">60<br>
+            <input type="radio" name="hu" value="70">70<br>
+            <input type="radio" name="hu" value="80">80-<br>
+        </td>
+        <td>
+          <input type="radio" name="han" value="1">1<br>
+          <input type="radio" name="han" value="2">2<br>
+          <input type="radio" name="han" value="3">3<br>
+          <input type="radio" name="han" value="4">4-5<br>
+          <input type="radio" name="han" value="6">6-7<br>
+          <input type="radio" name="han" value="8">8-10<br>
+          <input type="radio" name="han" value="11">11-12<br>
+          <input type="radio" name="han" value="13">13-<br>
+        </td>
+        <td>
+          <input type="radio" name="ten" value="1">-<br>
+          <input type="radio" name="ten" value="2">-<br>
+          <input type="radio" name="ten" value="3">-<br>
+          <input type="radio" name="ten" value="4">-<br>
+          <input type="radio" name="ten" value="7">-<br>
+          <input type="radio" name="ten" value="8">-<br>
+          <input type="radio" name="ten" value="11">-<br>
+          <input type="radio" name="ten" value="13">-<br>
+          </form>
+        </td>
+        <td>
+          <button id="submit" disabled="true">回答</button>
+        </td>
+        </tr>
+      </table>
+  </div>
   <script type="text/javascript" src="mj_game.js"></script>
   </body>
 </html>

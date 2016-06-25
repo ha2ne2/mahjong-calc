@@ -37,8 +37,8 @@
       (lazy-seq (map* f tail)))))
 
 
-;; (repeat-cat 3 '((白) (発)))
-;; => ((白) (発) (白) (発) (白) (発))
+;; (repeat-cat 3 '((逋ｽ) (逋ｺ)))
+;; => ((逋ｽ) (逋ｺ) (逋ｽ) (逋ｺ) (逋ｽ) (逋ｺ))
 (defn repeat-cat [n lst] (apply concat (repeat n lst)))
 
 ;; (remove (=x 1) '(1 2 3 1 2 3))
@@ -157,7 +157,7 @@
     (fn [x] (f x))
     (fn [x] (or (f x) ((apply juxt-or fns) x)))))
 
-;; (nanimati? "2334456789m中中中")
+;; (nanimati? "2334456789m荳ｭ荳ｭ荳ｭ")
 ;; (concat (f lst) (g lst) (h lst)) as
 ;; ((juxt-cat f g h) lst)
 ;; sample
@@ -177,22 +177,21 @@
     (cons (first lst) (remove-nth (dec n) (rest lst)))
     (rest lst)))
 
-;; (random-take 4 '(0 1 2 3))
-;; => (2 0 1 3)
+;;(random-take 3 '[a b c d e])
+;;=> (d a c)
 (defn random-take [n lst]
   (let [len (count lst)]
-    (second (reduce
-             (fn [[acc result] _]
-               (loop [m (rand-int len)]
-                 (if (acc m)
-                   (recur (rand-int len))
-                   [(conj acc m) (conj result (nth lst m))])))
-             [#{} ()] (range n)))))
-;; (defn random-take [n lst]
-;;   (loop [n n lst lst acc nil]
-;;     (if (<= n 0) acc
-;;         (let [rnd (int (rand (count lst)))]
-;;           (recur (dec n) (remove-nth rnd lst) (cons (nth lst rnd) acc))))))
+    (if (< len n)
+      nil
+      (loop [m (rand-int len)
+             selected #{}
+             result ()]
+        (if (= (count result) n)
+          result
+          (if (selected m)
+            (recur (rand-int len) selected result)
+            (recur (rand-int len) (conj selected m) (conj result (nth lst m)))))))))
+
 
 (defn iter-perm [v]
   (let [len (count v)
@@ -308,7 +307,7 @@
     (if (empty? lsts) [cs rs]
         (recur (conj cs c) (conj rs r) tail))))
 
-;; �Ԃ�l���W�߂Ȃ�map
+;; 返り値を集めないmap
 (defn mapc [f & lsts]
   (loop [lsts lsts]
     (let [[cars rests] (separate-cars-rests lsts)]
