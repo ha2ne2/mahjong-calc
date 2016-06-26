@@ -103,16 +103,27 @@
      (def correct-num (atom 0))
      (def wrong-num (atom 0))
      (def pbar (dom/getElement "pbar"))
+     (def start-time (atom (.getTime (js/Date.))))
+     (def timer-view (dom/getElement "timer"))
+     (def timer (atom nil))
      (def buffer1 (dom/getElement "buffer1"))
      (def buffer2 (dom/getElement "buffer2"))
-     ;; (def btns [(dom/getElement "ans1")
-     ;;            (dom/getElement "ans2")
-     ;;            (dom/getElement "ans3")
-     ;;            (dom/getElement "ans4")])
      (def ten-radio (.getElementsByName js/document "ten"))
      (def start-btn (dom/getElement "start"))
      (def submit-btn (dom/getElement "submit"))
+
+     ;; 引数は0.1秒を1とする
+     (defn convert-time [t]
+       (str (int (/ t 600)) ":"
+            (.slice (str "00" (int (mod (/ t 10) 60))) -2) "'"
+            (mod t 10)))
+
+     (defn timer-repaint []
+       (set! (.-innerHTML timer-view)
+             (convert-time (int (/ (- (.getTime (js/Date.)) @start-time) 100)))))
+
      (defn show-result []
+       (.clearInterval js/window @timer)
        (set! (.-innerHTML buffer1)
              (str "YOUR SCORE IS " @correct-num "/" 5))
        ;; (mapc
@@ -152,6 +163,10 @@
      (events/listen
       start-btn "click"
       (fn [event]
+        (reset! start-time (.getTime (js/Date.)))
+        (when @timer (.clearInterval js/window @timer))
+        (reset! timer (.setInterval js/window timer-repaint 50))
+
         (reset! current-problems
                 (random-take 5 problems))
         (reset! correct-num 0)
@@ -187,5 +202,4 @@
                (swap! revenge-lst conj (nth @current-problems @i)))))))
 
      (set! (.-disabled start-btn) false)))
-
 
