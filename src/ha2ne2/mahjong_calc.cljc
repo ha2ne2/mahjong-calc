@@ -799,22 +799,13 @@
 
 (defn make-cheet-sheet []
   (clojure.string/join
-   (for [han (range 1 5)]
-     (str "<tr><td>" han "</td>"
+   (for [hu [30 40 50]]
+     (str "<tr><td>" hu "</td>"
           (clojure.string/join
-           (for [hu [20 25 30 40 50 60 70 80 90 100 110]]
-             (str "<td>" (calc-ten hu han false false) "<br>"
-                  (calc-ten hu han false true) "</td>")))
+           (for [han (range 1 5)]
+             (str "<td>" (calc-ten hu han true false) "<br>"
+                  (calc-ten hu han true true) "</td>")))
           "</tr>"))))
-
-
-
-
-
-
-
-
-
 
 (defn count-dora [dora-lst hand]
   (reduce + (map #(count-if (=c %) hand) dora-lst)))
