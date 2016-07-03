@@ -252,7 +252,7 @@
 (defn flip [f] #(f %2 %1))
 
 (defn include? [xs ys]
-  (let [conv #(reduce (fn [map key] (ana-assoc map key (if it (inc it) 1))) {} %)
+  (let [conv #(reduce (fn [m k] (ana-assoc m k (if it (inc it) 1))) {} %)
         xs (conv xs)
         ys (conv ys)]
     (if (empty? (keys xs))
@@ -315,5 +315,18 @@
         nil
         (do (apply f cars)
             (recur rests))))))
+
+(defn fact [n] (if (< n 2) 1 (* n (fact (dec n)))))
+(defn p [n r] (/ (fact n) (fact (- n r))))
+(defn c [n r] (/ (p n r) (fact r)))
+
+(defn combinations [n lst]
+  (cond (> n (count lst)) nil
+        (= n 0) nil
+        (= n 1) (map list lst)
+        :else
+        (concat
+         (map #(cons (first lst) %) (combinations (dec n) (rest lst)))
+         (combinations n (rest lst)))))
 
 'ok

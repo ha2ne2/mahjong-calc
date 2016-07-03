@@ -427,11 +427,12 @@
    {:test 0, :pass 0, :fail 0}
    (pmap tenho-test agari-data-list)))
 
-(defn agari-100-test []
-  (let [file (first (monthly-files "1401"))
-        ids (get-ids-from-file file)
-        agaris (take 100 (mapcat #(get-agari' "1401/" %) ids))]
-    (agari-test agaris)))
+(defn agari-test2
+  ([n] (agari-test2 0 n))
+  ([start n]
+   (let [ids (mapcat get-ids-from-file (monthly-files "1501"))
+         agaris (doall (take n (drop start (mapcat #(get-agari' "1501/" %) ids))))]
+     (time (agari-test agaris)))))
 
 (defn one-day-test []
   (let [file (first (monthly-files "1401"))
@@ -444,7 +445,7 @@
   (let [files  (monthly-files month-str)
         ids    (mapcat get-ids-from-file files)
         agaris (mapcat #(get-agari' (str month-str "/") %) ids)]
-    (agari-test agaris)))
+    (time (agari-test agaris))))
 
 (defn year-test []
   (let [ids    (mapcat get-ids-from-file file-names)
@@ -476,6 +477,9 @@
 (defn start-convert []
   (let [ids (mapcat get-ids-from-file file-names)]
     (mapc' convert (take 1000 (mapcat (comp get-agari add-path-to-id) ids)))))
+
+
+
 
 ;; (defn agari-100-test2 []
 ;;   (let [files (monthly-files "1401")

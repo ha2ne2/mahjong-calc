@@ -46,7 +46,7 @@
                                  remove-xs intersection set-difference subset? remove-duplicate
                                  find-duplicate count-if juxt* juxt-or juxt-cat remove-nth
                                  random-take iter-perm permutations sfirst $ count= c-to-i s-to-i
-                                 =c find-if flip include?]]))
+                                 =c find-if flip include? combinations]]))
 (def yaku-set
   (yakulist-to-set
    ((1 門前清自摸和 立直 槍槓 嶺上開花 海底撈月 河底撈魚 役牌 断幺九 一盃口 平和)
@@ -181,7 +181,7 @@
       (let [akadora (map (comp symbol second) (re-seq #"0.*?([mps])" s))
             info (read-info info)
             menzen (to-list* a)
-            naki (map to-list* (butlast b))
+            naki (empty-to-nil (map to-list* (butlast b)))
             hu-ro (map naki-to-list (butlast b)) ;; 改良の余地がある また今度
             ho-ra (tumo-or-ron (last b))
             hand (array-map :menzen menzen :naki naki :aka akadora :string s)
@@ -214,8 +214,8 @@
    (concat (repeat-cat 4 (mapcat (fn [x] (map #(list x %) (range 1 10))) '(m p s)))
            (repeat-cat 4 '((東) (南) (西) (北) (白) (発) (中))))))
 
-;(sort-grouped-hand '(((m 2) (m 3) (m 4)) ((p 7) (p 8) (p 9)) ((p 4) (p 5) (p 6)) ((s 6) (s 7) (s 8)) ((西) (西))))
-;=>(((m 2) (m 3) (m 4)) ((p 4) (p 5) (p 6)) ((p 7) (p 8) (p 9)) ((s 6) (s 7) (s 8)) ((西) (西)))
+;;(sort-grouped-hand '(((m 2) (m 3) (m 4)) ((p 7) (p 8) (p 9)) ((p 4) (p 5) (p 6)) ((s 6) (s 7) (s 8)) ((西) (西))))
+;;=>(((m 2) (m 3) (m 4)) ((p 4) (p 5) (p 6)) ((p 7) (p 8) (p 9)) ((s 6) (s 7) (s 8)) ((西) (西)))
 (defn sort-grouped-hand [grouped-hand]
   (sort-by (juxt #(* -1 (count %)) #(pai-order (ffirst %)) sfirst) ; ソート優先度は 牌の数（雀頭を後ろに）、牌の種類、牌の数値
            grouped-hand))
@@ -261,17 +261,16 @@
 ;; 関数を返す関数に関数を返す関数を適用して関数を返す関数
 (defn get-pairs-function-generator [pair-gen]
   (fn [lst]
-    (remove-duplicate
-     (for [x lst
-           :let [a (pair-gen x)]
-           :when (include? a lst)]
-       a))))
+    (for [x lst
+          :let [a (pair-gen x)]
+          :when (include? a lst)]
+      a)))
 
 ;; (get-toitu (to-list* "123s333456m88p白白白"))
 ;; (((白) (白)) ((p 8) (p 8)) ((m 3) (m 3)))
 (def get-toitu
-  (get-pairs-function-generator
-   (fn [pai] (repeat 2 pai))))
+  (comp remove-duplicate 
+        (get-pairs-function-generator (fn [pai] (repeat 2 pai)))))
 
 ;; (get-koutu (to-list* "123s333456m88p白白白"))
 ;; (((白) (白) (白)) ((m 3) (m 3) (m 3)))
@@ -312,16 +311,22 @@
                      (find-x head tail) (recur (remove-x head tail) (cons (list head head) result))
                      :else nil)))
             
-            (rec% [lst acc]
+            ;; [groupd-hand]
+            (rec% [lst atama]
               (if (empty? lst)
-                (list acc)
-                (if-let [mentus (seq (get-syuntu-or-koutu lst))]
-                  (mapcat #(rec% (remove-xs % lst) (cons % acc)) mentus)
-                  nil)))
+                (list (list atama))
+                (let [mentus (seq (get-syuntu-or-koutu lst))
+                      n (/ (count lst) 3)
+                      comb (combinations n mentus)]
+                  (if (< (count mentus) n)
+                    nil
+                    (for [c comb
+                          :when (include? (flatten1 c) lst)]
+                      (conj c atama))))))
 
             (rec [lst]
               (if-let [atamas (seq (get-toitu lst))]
-                (mapcat #(rec% (remove-xs % lst) (list %)) atamas)
+                (mapcat #(rec% (remove-xs % lst) %) atamas)
                 nil))]
 
       (->> (concat (kokusi? lst) (ti-toitu? lst) (rec lst))
@@ -537,15 +542,14 @@
         (count= 4 (concat kan ankan)) '(13 四槓子)))
 
 (defn sannankou-su-ankou? [{:keys [figure pon ti- kan ankan tumo ron] :as hand}]
-  (let [anko (concat (filter koutu? figure) ankan)
-        anko-janai (filter (complement koutu?) figure)]
-    (cond (count= 3 anko)
-          (if (and ron (some #(find-x ron %) anko))
-            (if (some #(find-x ron %) anko-janai) '(2 三暗刻) nil)
+  (let [ko-tu (concat (filter koutu? figure) ankan)
+        ko-tu-janai (filter (complement koutu?) figure)]
+    (cond (count= 3 ko-tu)
+          (if (and ron (some #(find-x ron %) ko-tu))
+            (if (some #(find-x ron %) ko-tu-janai) '(2 三暗刻) nil)
             '(2 三暗刻))
-          (count= 4 anko)
-          (if (and ron (some #(find-x ron %) anko)) '(2 三暗刻) '(13 四暗刻)))))
-
+          (count= 4 ko-tu)
+          (if (and ron (some #(find-x ron %) ko-tu)) '(2 三暗刻) '(13 四暗刻)))))
 
 
 
@@ -713,9 +717,17 @@
 (defn my-ceil [n]
   (* 100 (int (/ (+ n 99) 100))))
 
-;; (nan-ten?* 30 4 false false)
+(defn calc-ten% [oya tumo oya-ten ko-ten]
+  (case [oya tumo]
+    [true true]   (str (/ oya-ten 3) "all")
+    [true false]  (str oya-ten)
+    [false true]  (str (/ ko-ten 4) "-" (/ ko-ten 2))
+    [false false] (str ko-ten)))
+    
+
+;; (nan-ten?2 30 4 false false)
 ;; 7700
-(defn calc-ten [hu han oya tumo]
+(defn calc-ten2 [hu han oya tumo]
   (cond
     (= han 0)
     0
@@ -749,6 +761,59 @@
     (if oya 144000 96000)
     ; (if tumo "16000all" "48000") (if tumo "8000-16000" "32000")
     ))
+
+(defn calc-ten [hu han oya tumo]
+  (println tumo)
+  (str(cond
+    (= han 0)
+    0
+    (<= han 5)
+    (let [base (* hu (int (Math/pow 2 (+ han 2))))]
+      (if (< base 2000)
+        (case [oya tumo]
+          [true true]  (str (my-ceil (* 2 base)) "all")
+          [true false] (str (my-ceil (* base 6)))
+          [false true] (str (my-ceil base) "-" (my-ceil (* 2 base)))
+          [false false](str (my-ceil (* base 4))))
+        (calc-ten% oya tumo 12000 8000))
+        ; (if tumo "4000all" "12000") (if tumo "2000-4000" "8000")
+      )
+    (<= han 7) ;haneman
+    (calc-ten% oya tumo 18000 12000)
+
+    (<= han 10) ;baiman
+    (calc-ten% oya tumo 24000 16000)
+
+    (<= han 12) ;sanbaiman
+    (calc-ten% oya tumo 36000 24000)
+
+    (<= 13 han 25) ;yakuman
+    (calc-ten% oya tumo 48000 32000)
+
+    (<= 26 han 38) ;double yakuman
+    (calc-ten% oya tumo 96000 64000)
+
+    (<= 39 han) ;triple yakuman
+    (calc-ten% oya tumo 144000 96000)
+    )))
+
+(defn make-cheet-sheet []
+  (clojure.string/join
+   (for [han (range 1 5)]
+     (str "<tr><td>" han "</td>"
+          (clojure.string/join
+           (for [hu [20 25 30 40 50 60 70 80 90 100 110]]
+             (str "<td>" (calc-ten hu han false false) "<br>"
+                  (calc-ten hu han false true) "</td>")))
+          "</tr>"))))
+
+
+
+
+
+
+
+
 
 
 (defn count-dora [dora-lst hand]
@@ -795,7 +860,7 @@
                       (cond (kui-pinhu? figure) 30 ; 喰いピンフは30符
                             (find-x '七対子 yaku-lst) 25
                             :else hu))
-                    ten (calc-ten hu han (figure :oya) (figure :tumo))]
+                    ten (calc-ten hu han (figure :oya) ((complement nil?) (figure :tumo)))]
                 (assoc figure
                        :han han
                        :yaku yaku
@@ -805,7 +870,6 @@
       (sort-by (juxt :飜 :符)
                (flip compare)
                (map (comp show-figure add-info) figures hans hus)))))
-
 
 (defn hu-helper [lst]
   (let [figures (figure-out lst)
@@ -846,7 +910,7 @@
                       (cond (kui-pinhu? figure) 30 ; 喰いピンフは30符
                             (find-x '七対子 yaku-lst) 25
                             :else hu))
-                    ten (calc-ten hu han (figure :oya) (figure :tumo))]
+                    ten (calc-ten hu han (figure :oya) ((complement nil?) (figure :tumo)))]
                 (assoc figure
                        :han han
                        :yaku yaku
@@ -862,13 +926,6 @@
 
 ;;(hu-helper (to-list "111p234p345p345p22p"))
 ;; ((+ 副底 門前加符 刻子符 頭符 待ち符) (+ 20 0 20 0 0))
-
-
-
-
-    
-
-
 
 (defn nan-ten? [str]
   (nan-ten?% (to-list str)))
@@ -953,19 +1010,18 @@
     (str (hand-to-html (to-list s)) "<br><br>"
          (apply str (interpose "<br>" figures)))))
 
-;; (nan-ten? "34578m345p33345s 6m':東4局南家立直ドラ中裏ドラ発")
-;; ({:手 "345m678m345p345s33s", :親/子 子, :符 20, :飜 6, :点 12000, :役 ((1 立直) (1 断么九) (1 平和) (1 門前自摸) (2 三色同順))})
-
 ;; (choices-generator "34578m345p33345s 6m':東4局南家立直ドラ中裏ドラ発")
 ;; (800 1200 1600 2400 3900 5800 8000 12000)
 ;; (子 20 12000)
 (defn choices-generator [s]
-  (let [{ten :点} (first (nan-ten? s))]
+  (let [{oya :oya tumo :tumo} (to-list s)
+        tumo ((complement nil?) tumo)
+        {ten :点} (first (nan-ten? s))]
     (-> (reduce #(if (= 8 (count %)) (reduced %) (conj % %2))
                 #{ten} (repeatedly #(calc-ten (first (random-take 1 [25 30 40 50 60 70]))
                                            (inc (rand-int 4))
-                                           (first (random-take 1 [true false]))
-                                           (first (random-take 1 [true false])))))
+                                           oya
+                                           tumo)))
         vec
         sort)))
 

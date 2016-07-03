@@ -103,6 +103,7 @@
      (def correct-num (atom 0))
      (def wrong-num (atom 0))
      (def pbar (dom/getElement "pbar"))
+     (def pbar2 (dom/getElement "pbar2"))
      (def start-time (atom (.getTime (js/Date.))))
      (def timer-view (dom/getElement "timer"))
      (def timer (atom nil))
@@ -125,13 +126,7 @@
      (defn show-result []
        (.clearInterval js/window @timer)
        (set! (.-innerHTML buffer1)
-             (str "YOUR SCORE IS " @correct-num "/" 5))
-       ;; (mapc
-       ;;  (fn [btn choice]
-       ;;    (set! (.-innerHTML btn) "-")
-       ;;    (set! (.-disabled btn) true))
-       ;;  btns)
-       )
+             (str "YOUR SCORE IS " @correct-num "/" (count @current-problems))))
 
      (defn show-current-problem []
        (let [curr (nth @current-problems @i)
@@ -148,7 +143,7 @@
 
      (defn show-next-problem []
        (swap! i inc)
-       (set! (.-value pbar) (int (* (/ @i (count @current-problems)) 100)))
+       (set! (.-value (if @revenge-mode pbar2 pbar)) (int (* (/ @i (count @current-problems)) 100)))
        (if (= @i (count @current-problems))
          (do (reset! revenge-mode true)
              (if (empty? @revenge-lst)
@@ -156,7 +151,7 @@
                (do (reset! current-problems @revenge-lst)
                    (reset! revenge-lst [])
                    (reset! i 0)
-                   (set! (.-value pbar) 0)
+                   ;(set! (.-value pbar) 0)
                    (show-current-problem))))
          (show-current-problem)))
      
@@ -168,13 +163,14 @@
         (reset! timer (.setInterval js/window timer-repaint 50))
 
         (reset! current-problems
-                (random-take 5 problems))
+                (random-take 10 problems))
         (reset! correct-num 0)
         (reset! wrong-num 0)
         (reset! i 0)
         (reset! revenge-mode false)
         (set! (.-disabled submit-btn) false)
         (set! (.-value pbar) 0)
+        (set! (.-value pbar2) 0)
         (show-current-problem)))
 
      (events/listen submit-btn "click"
