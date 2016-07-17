@@ -16,79 +16,107 @@
       }
 
     </style>
-
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet">
+    
   </head>
   <body>
-  <h1>麻雀点数計算練習ソフト rev14</h1>
-  <button id="start" disabled="true">開始</button>　　<span style="font-size:2em" id="timer">0:00'0</span><br><br>
+    <section class="container">
+      <h1>麻雀点数計算練習ソフト rev14</h1>
+      <div class="row">
+        <div class="col-sm-9" style="background-color: #EEEEFF;">
+          <br>
 
+          <button id="start" class="btn btn-primary" disabled="true">開始</button>　　<span style="font-size:2em" id="timer">0:00'0</span><br><br>
+          <nobr><div style="width:100%;background:#cccccc;font-size:2em" id="buffer1">-</div></nobr>
+          <progress value="0" max="100" style="width:100%" id="pbar" style="color:red"></progress>
+          <progress value="0" max="100" style="width:100%" id="pbar2" style="color:red"></progress>
+          <div id="buffer2"></div>
+          <br>
+          <table>
+            <tr><td>
+                <div id="question">
+                  <form id="form1">
+                    <table>
+                      <tr>
+                        <td>符</td><td>翻</td><td>点</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <label><input type="radio" name="hu" value="20">20</label><br>
+                          <label><input type="radio" name="hu" value="25">25</label><br>
+                          <label><input type="radio" name="hu" value="30">30</label><br>
+                          <label><input type="radio" name="hu" value="40">40</label><br>
+                          <label><input type="radio" name="hu" value="50">50</label><br>
+                          <label><input type="radio" name="hu" value="60">60</label><br>
+                          <label><input type="radio" name="hu" value="70">70</label><br>
+                          <label><input type="radio" name="hu" value="80">80-</label><br>
+                        </td>
+                        <td>
+                          <label><input type="radio" name="han" value="1">1</label><br>
+                          <label><input type="radio" name="han" value="2">2</label><br>
+                          <label><input type="radio" name="han" value="3">3</label><br>
+                          <label><input type="radio" name="han" value="4">4-5</label><br>
+                          <label><input type="radio" name="han" value="6">6-7</label><br>
+                          <label><input type="radio" name="han" value="8">8-10</label><br>
+                          <label><input type="radio" name="han" value="11">11-12</label><br>
+                          <label><input type="radio" name="han" value="13">13-</label><br>
+                        </td>
+                        <td style="width: 8em">
+                          <label><input type="radio" name="ten" value="1">-</label><br>
+                          <label><input type="radio" name="ten" value="2">-</label><br>
+                          <label><input type="radio" name="ten" value="3">-</label><br>
+                          <label><input type="radio" name="ten" value="4">-</label><br>
+                          <label><input type="radio" name="ten" value="7">-</label><br>
+                          <label><input type="radio" name="ten" value="8">-</label><br>
+                          <label><input type="radio" name="ten" value="11">-</label><br>
+                          <label><input type="radio" name="ten" value="13">-</label><br>
+                        </td>
+                        <td>
+                          <input type="submit" disabled="true" value="回答" id="submit-btn">
+                        </td>
+                      </tr>
+                    </table>
+                  </form>
+                </div>
+              </td>
+              <td>
+                <form id="ranking-form" style="display: none;">
+                  <nobr><label>名前　</label> <input type="text" name="name" id="name"></nobr><br>
+                  <nobr><label id="score-view">タイム</label></nobr><br>
+                  <input type="hidden" name="score" id="score-data">
+                  <nobr><label>コメント</label> <input type="text" name="comment"></nobr><br>
+                  <input type="submit" class="btn btn-success" value="ランキングに登録" id="ranking-submit-btn">
+                </form>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <div class="col-sm-3" id="ranking-view">黄色</div>
+      </div>
+      <br>
+      <div class="row">
+        <div class="col-sm-12">
+          <div id="cheet_sheet">
+            子
+            <table border=1>
+              <tr><td>符＼飜</td><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+              <tr><td>30</td><td>1000<br>300-500</td><td>2000<br>500-1000</td><td>3900<br>1000-2000</td><td>7700<br>2000-3900</td></tr><tr><td>40</td><td>1300<br>400-700</td><td>2600<br>700-1300</td><td>5200<br>1300-2600</td><td>8000<br>2000-4000</td></tr><tr><td>50</td><td>1600<br>400-800</td><td>3200<br>800-1600</td><td>6400<br>1600-3200</td><td>8000<br>2000-4000</td></tr>
+            </table>
+            <br>
+            親
+            <table border=1>
+              <tr><td>飜＼符</td><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+              <tr><td>30</td><td>1500<br>500all</td><td>2900<br>1000all</td><td>5800<br>2000all</td><td>11600<br>3900all</td></tr><tr><td>40</td><td>2000<br>700all</td><td>3900<br>1300all</td><td>7700<br>2600all</td><td>12000<br>4000all</td></tr><tr><td>50</td><td>2400<br>800all</td><td>4800<br>1600all</td><td>9600<br>3200all</td><td>12000<br>4000all</td></tr>
+            </table>
+          </div>
+        </div>
+    </section>
+    <br><br><br><br><br><br><br><br><br>
+    <br><br><br><br><br><br><br><br><br>
+    <br><br><br><br><br><br><br><br><br>
 
-  <div style="width:100%;background:#cccccc;font-size:2em" id="buffer1">-</div>
-  <progress value="0" max="100" style="width:100%" id="pbar" style="color:red"></progress>
-  <progress value="0" max="100" style="width:100%" id="pbar2" style="color:red"></progress>
-  <div id="buffer2"></div>
-
-  <br>
-
-  <div id="question">
-    <table>
-      <tr>
-        <td>符</td><td>翻</td><td>点</td>
-      </tr>
-      <tr>
-        <td>
-          <form id="form1">
-            <input type="radio" name="hu" value="20">20<br>
-            <input type="radio" name="hu" value="25">25<br>
-            <input type="radio" name="hu" value="30">30<br>
-            <input type="radio" name="hu" value="40">40<br>
-            <input type="radio" name="hu" value="50">50<br>
-            <input type="radio" name="hu" value="60">60<br>
-            <input type="radio" name="hu" value="70">70<br>
-            <input type="radio" name="hu" value="80">80-<br>
-        </td>
-        <td>
-          <input type="radio" name="han" value="1">1<br>
-          <input type="radio" name="han" value="2">2<br>
-          <input type="radio" name="han" value="3">3<br>
-          <input type="radio" name="han" value="4">4-5<br>
-          <input type="radio" name="han" value="6">6-7<br>
-          <input type="radio" name="han" value="8">8-10<br>
-          <input type="radio" name="han" value="11">11-12<br>
-          <input type="radio" name="han" value="13">13-<br>
-        </td>
-        <td style="width: 8em">
-          <input type="radio" name="ten" value="1">-<br>
-          <input type="radio" name="ten" value="2">-<br>
-          <input type="radio" name="ten" value="3">-<br>
-          <input type="radio" name="ten" value="4">-<br>
-          <input type="radio" name="ten" value="7">-<br>
-          <input type="radio" name="ten" value="8">-<br>
-          <input type="radio" name="ten" value="11">-<br>
-          <input type="radio" name="ten" value="13">-<br>
-          </form>
-        </td>
-        <td>
-          <button id="submit" disabled="true">回答</button>
-        </td>
-        </tr>
-      </table>
-</div>
-<br><br><br>
-<div id="cheet_sheet">
-    子
-    <table border=1>
-      <tr><td>符＼飜</td><td>1</td><td>2</td><td>3</td><td>4</td></tr>
-<tr><td>30</td><td>1000<br>300-500</td><td>2000<br>500-1000</td><td>3900<br>1000-2000</td><td>7700<br>2000-3900</td></tr><tr><td>40</td><td>1300<br>400-700</td><td>2600<br>700-1300</td><td>5200<br>1300-2600</td><td>8000<br>2000-4000</td></tr><tr><td>50</td><td>1600<br>400-800</td><td>3200<br>800-1600</td><td>6400<br>1600-3200</td><td>8000<br>2000-4000</td></tr>
-    </table>
-    <br>
-    親
-    <table border=1>
-      <tr><td>飜＼符</td><td>1</td><td>2</td><td>3</td><td>4</td></tr>
-<tr><td>30</td><td>1500<br>500all</td><td>2900<br>1000all</td><td>5800<br>2000all</td><td>11600<br>3900all</td></tr><tr><td>40</td><td>2000<br>700all</td><td>3900<br>1300all</td><td>7700<br>2600all</td><td>12000<br>4000all</td></tr><tr><td>50</td><td>2400<br>800all</td><td>4800<br>1600all</td><td>9600<br>3200all</td><td>12000<br>4000all</td></tr>
-    </table>
-</div>
-  <script type="text/javascript" src="mj_game.js"></script>
+    <script type="text/javascript" src="mj_game.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
   </body>
 </html>
 

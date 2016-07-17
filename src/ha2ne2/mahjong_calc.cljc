@@ -763,7 +763,6 @@
     ))
 
 (defn calc-ten [hu han oya tumo]
-  (println tumo)
   (str(cond
     (= han 0)
     0

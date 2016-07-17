@@ -11,6 +11,7 @@
    [mj-game.problems :refer [problems]]
    #?@(:cljs
        ([goog.events :as events]
+        [goog.net.cookies :as cookies]
         [goog.dom :as dom]
         [goog.dom.forms :as forms]
         ))))
@@ -94,6 +95,9 @@
      (extend-type js/NodeList
        ISeqable
        (-seq [array] (array-seq array 0)))
+     (extend-type js/HTMLFormControlsCollection
+       ISeqable
+       (-seq [array] (array-seq array 0)))
      (enable-console-print!)
      (def current-problems (atom nil))
      (def current-answer (atom nil))
@@ -105,13 +109,16 @@
      (def pbar (dom/getElement "pbar"))
      (def pbar2 (dom/getElement "pbar2"))
      (def start-time (atom (.getTime (js/Date.))))
+     (def finish-time (atom nil))
      (def timer-view (dom/getElement "timer"))
      (def timer (atom nil))
      (def buffer1 (dom/getElement "buffer1"))
      (def buffer2 (dom/getElement "buffer2"))
      (def ten-radio (.getElementsByName js/document "ten"))
      (def start-btn (dom/getElement "start"))
-     (def submit-btn (dom/getElement "submit"))
+     (def submit-btn (dom/getElement "submit-btn"))
+     (def xhr (js/XMLHttpRequest.))
+     (def ranking-form (dom/getElement "ranking-form"))
 
      ;; 引数は0.1秒を1とする
      (defn convert-time [t]
@@ -125,8 +132,16 @@
 
      (defn show-result []
        (.clearInterval js/window @timer)
+       (set! (.-value (dom/getElement "name"))
+             (if-let [name (.get goog.net.cookies "name")]
+               (js/decodeURI name)
+               ""))
        (set! (.-innerHTML buffer1)
-             (str "YOUR SCORE IS " @correct-num "/" (count @current-problems))))
+             (str "YOUR SCORE IS " @correct-num "/" 10))
+       (set! (.-innerHTML (dom/getElement "score-view"))
+             (str "タイム　" (convert-time (int (/ (- @finish-time @start-time) 100)))))
+       (set! (.-disabled submit-btn) true)
+       (set! (.-display (.-style ranking-form)) "block"))
 
      (defn show-current-problem []
        (let [curr (nth @current-problems @i)
@@ -147,13 +162,19 @@
        (if (= @i (count @current-problems))
          (do (reset! revenge-mode true)
              (if (empty? @revenge-lst)
-               (show-result)
+               (do (reset! finish-time (.getTime (js/Date.)))
+                   (show-result))
                (do (reset! current-problems @revenge-lst)
                    (reset! revenge-lst [])
                    (reset! i 0)
                    ;(set! (.-value pbar) 0)
                    (show-current-problem))))
          (show-current-problem)))
+     
+     (defn set-form-available [form bool]
+       (mapc
+        #(set! (.-disabled %) (not bool))
+        (seq (.-elements form))))
      
      (events/listen
       start-btn "click"
@@ -163,7 +184,7 @@
         (reset! timer (.setInterval js/window timer-repaint 50))
 
         (reset! current-problems
-                (random-take 10 problems))
+                (random-take 1 problems))
         (reset! correct-num 0)
         (reset! wrong-num 0)
         (reset! i 0)
@@ -171,15 +192,26 @@
         (set! (.-disabled submit-btn) false)
         (set! (.-value pbar) 0)
         (set! (.-value pbar2) 0)
+        (set! (.-display (.-style ranking-form)) "none")
+        (set-form-available ranking-form true)
         (show-current-problem)))
+
+     (events/listen (dom/getElement "ranking-submit-btn") "click"
+        (fn [event]
+          (.preventDefault event)
+          (.open xhr "POST" "../ranking.php")
+          (let [form-data (js/FormData. ranking-form)]
+            (.append form-data
+                     "score" (int (/ (- @finish-time @start-time) 100)))
+            (.send xhr form-data)
+            (set-form-available ranking-form false))))
 
      (events/listen submit-btn "click"
         (fn [event]
-          (println "button clicked" @current-answer)
+          (.preventDefault event)
           (let [get-value (fn [name] (forms/getValueByName (dom/getElement "form1") name))
                 [hu han ten :as correct] (map str (convert-answer @current-answer))
                 [hu2 han2 ten2 :as answer] (map get-value ["hu" "han" "ten"])]
-            (println :correct correct :answer answer)
             (if (= correct answer)
              (do
                (set! (-> buffer1 .-style .-backgroundColor) "#cccccc")
@@ -197,5 +229,11 @@
                (set! (-> buffer1 .-style .-backgroundColor) "red")
                (swap! revenge-lst conj (nth @current-problems @i)))))))
 
-     (set! (.-disabled start-btn) false)))
+     (set! (.-onload xhr)
+           (fn [e]
+             (set! (.-innerHTML (dom/getElement "ranking-view"))
+                   (.-response xhr))))
+     (.open xhr "GET" "../ranking.php")
+     (.send xhr)
 
+     (set! (.-disabled start-btn) false)))
