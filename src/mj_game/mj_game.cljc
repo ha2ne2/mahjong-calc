@@ -184,7 +184,7 @@
         (reset! timer (.setInterval js/window timer-repaint 50))
 
         (reset! current-problems
-                (random-take 1 problems))
+                (random-take 10 problems))
         (reset! correct-num 0)
         (reset! wrong-num 0)
         (reset! i 0)

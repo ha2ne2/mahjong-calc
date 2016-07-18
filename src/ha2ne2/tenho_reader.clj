@@ -400,29 +400,22 @@
 (defn extract-by' [m & keys]
   (apply concat-array-map (map #(array-map % (% m)) keys)))
 
-(defn calc-by-myself [lst]
-  (extract-by (first (nan-ten?% lst)) [:符 :点]))
-
-(defn calc-by-tenho [lst]
-  (extract-by lst [:hu' :ten']))
-
 (defn tenho-test [agari-data]
-  (let [s (figure-to-str (first (figure-out agari-data)))
-        [me tenho] ((juxt calc-by-myself calc-by-tenho) agari-data)]
+  (let [me (extract-by (first (nan-ten?% agari-data)) [:符 :点])
+        tenho (extract-by agari-data [:hu' :ten'])]
     (if (= me tenho)
-      (do ;;(println "PASS:" s me)
-        true)
-      (do (println "\n" (agari-data :id) "\n FAIL:" s me tenho agari-data) false))))
+      true
+      (do (println "\n" (agari-data :id) "\n FAIL:"
+                   (figure-to-str (first (figure-out agari-data)))
+                   me tenho agari-data)
+          false))))
 
 (defn agari-test [agari-data-list]
   (reduce
    (fn [acc result]
-     (when (zero? (mod (acc :test) 500))
-       (println acc))
+     (when (zero? (mod (acc :test) 500)) (println acc))
      (update
-      (if result
-        (update acc :pass inc)
-        (update acc :fail inc))
+      (update acc (if result :pass :fail) inc)
       :test inc))
    {:test 0, :pass 0, :fail 0}
    (pmap tenho-test agari-data-list)))

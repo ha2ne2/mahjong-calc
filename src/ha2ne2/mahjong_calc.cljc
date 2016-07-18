@@ -244,7 +244,7 @@
 
 (defn random-hand-str [] (to-str (random-take 14 all-pais)))
 
-;; (pair-to-str '((m 1) (m 2) (m 3)))
+;;(pair-to-str '((m 1) (m 2) (m 3)))
 ;;=> "123m"
 (defn pair-to-str [lst]
   (str (if (jihai (first lst))
@@ -311,28 +311,64 @@
                      (find-x head tail) (recur (remove-x head tail) (cons (list head head) result))
                      :else nil)))
             
-            ;; [groupd-hand]
-            (rec% [lst atama]
-              (if (empty? lst)
-                (list (list atama))
-                (let [mentus (seq (get-syuntu-or-koutu lst))
-                      n (/ (count lst) 3)
-                      comb (combinations n mentus)]
-                  (if (< (count mentus) n)
-                    nil
-                    (for [c comb
-                          :when (include? (flatten1 c) lst)]
-                      (conj c atama))))))
+            (rm [a b]
+              (reduce (fn [acc key]
+                        (if (and (a key) (b key) (<= (b key) (a key)))
+                          (update acc key #(- % (b key)))
+                          (reduced nil)))
+                      a (keys b)))
 
-            (rec [lst]
-              (if-let [atamas (seq (get-toitu lst))]
-                (mapcat #(rec% (remove-xs % lst) %) atamas)
-                nil))]
+            (convert [hand]
+              (reduce #(update % %2 (fnil inc 0))
+                      {} hand))
 
-      (->> (concat (kokusi? lst) (ti-toitu? lst) (rec lst))
-           (map sort-grouped-hand)
-           (#(remove-duplicate % set))
-           (map #(concat-array-map hand {:figure %}))))))
+            (revert [lst]
+              (map
+               (fn [m] (mapcat #(repeat (m %) %) (keys m)))
+               lst))
+
+            (S [[c n]]
+              (if (and n (<= n 7))
+                {[c n] 1, [c (+ n 1)] 1, [c (+ n 2)] 1}
+                nil))
+            (K [pai] {pai 3})
+            (H [pai] {pai 2})
+            
+            (fout [hand]
+              (let [hm (convert hand)
+                    keys (vec (sort-hand (keys hm)))
+                    len (count keys)]
+                (letfn [(rec [i hm acc h]
+                          (if (>= i len)
+                            (list (revert (conj acc h)))
+                            (case (hm (keys i))
+                              0 (rec (inc i) hm acc h)
+                              1 (let [s (S (keys i))
+                                      hm' (rm hm s)]
+                                  (when (and s hm')
+                                    (rec (inc i) hm' (conj acc s) h)))
+                              2 (concat
+                                 (let [h' (when (not h) (H (keys i)))
+                                       hm' (when h' (rm hm h'))]
+                                   (when hm'
+                                     (rec (inc i) hm' acc h')))
+                                 (let [s (S (keys i)) hm' (rm hm s)]
+                                   (when (and s hm')
+                                     (rec i hm' (conj acc s) h))))
+                              3 (concat
+                                 (let [k (K (keys i))]
+                                   (rec (inc i) (rm hm k) (conj acc k) h))
+                                 (let [s (S (keys i)) hm' (rm hm s)]
+                                   (when (and s hm')
+                                     (rec i hm' (conj acc s) h))))
+                              4 (let [s (S (keys i)) hm' (rm hm s)]
+                                  (when (and s hm')
+                                    (rec i hm' (conj acc s) h))))))]
+                  (rec 0 hm nil nil))))]
+       (->> (concat (kokusi? lst) (ti-toitu? lst) (fout lst))
+            (map sort-grouped-hand)
+            (#(remove-duplicate % set))
+            (map #(concat-array-map hand {:figure %}))))))
 
 
 ;; (nanimati? "2223456778999p")
@@ -812,54 +848,75 @@
 ;; (nan-ten? "234s345m6667899p 9p':一発ドラ9999p")
 ;; (("345m678p999p234s66p" :符 30 :飜 10 :点 16000 :役 ((1 一発) (1 門前自摸) (8 ドラ))) ("345m666p789p234s99p" :符 30 :飜 10 :点 16000 :役 ((1 一発) (1 門前自摸) (8 ドラ))))
 
+;; (defmacro time2
+;;   "Evaluates expr and prints the time it took.  Returns the value of
+;;  expr."
+;;   {:added "1.0"}
+;;   [s expr]
+;;   expr
+;;   ;; `(let [start# (. System (nanoTime))
+;;   ;;        ret# ~expr]
+;;   ;;    (prn (str ~s " Elapsed time: " (/ (double (- (. System (nanoTime)) start#)) 1000000.0) " msecs"))
+;;   ;;    (doall ret#))
+;;   )
+
+(defn add-info [figure [han yaku] hu]
+  (let [flat-figure-naki (concat (flatten1 (figure :figure))
+                                 (flatten1 (figure :naki)))
+        dora-count (count-dora (figure :dora)
+                               flat-figure-naki)
+        ura-dora-count (count-dora (figure :ura-dora)
+                                   flat-figure-naki)
+        aka-dora-count (count (figure :aka))
+        yakuman-flag (some (comp (=c 13) first) yaku)
+        yaku (concat
+              (figure :aux)
+              yaku
+              (when (not yakuman-flag)
+                (concat
+                 (when (some (comp (=c (figure :ba)) ffirst)
+                             (concat (filter koutu? (figure :figure))
+                                     (figure :naki)))
+                   '((1 場風牌)))
+                 (when (some (comp (=c (figure :ie)) ffirst)
+                             (concat (filter koutu? (figure :figure))
+                                     (figure :naki)))
+                   '((1 自風牌)))
+                 (when (not= dora-count 0) [[dora-count 'ドラ]])
+                 (when (not= ura-dora-count 0) [[ura-dora-count '裏ドラ]])
+                 (when (not= aka-dora-count 0) [[aka-dora-count '赤ドラ]])))
+              )
+        han (reduce + (map first yaku))
+        yaku-lst (map second yaku)
+        hu
+        (if (find-x '平和 yaku-lst)
+          (if (find-x '門前自摸 yaku-lst) 20 30) ; ピンフツモは20符
+          (cond (kui-pinhu? figure) 30 ; 喰いピンフは30符
+                (find-x '七対子 yaku-lst) 25
+                :else hu))
+        ten (calc-ten hu han (figure :oya) ((complement nil?) (figure :tumo)))]
+    (assoc figure
+           :han han
+           :yaku yaku
+           :hu hu
+           :ten ten)))
+;; (defn hoge [a]
+;;   (time "total"
+;;    (let [x (time "f" (doall (f a)))
+;;          y (time "g" (doall (g x)))
+;;          z (time "h" (doall (h x)))]
+;;      (time "map" (doall (map i x y z))))))
+
 (defn nan-ten?% [lst]
   (let [figures (figure-out lst)
         hans (map nan-han? figures)
-        hus  (map nan-pu? figures)]
-    (letfn [(add-info [figure [han yaku] hu]
-              (let [dora-count (count-dora (figure :dora)
-                                           (concat (flatten1 (figure :figure))
-                                                   (flatten1 (figure :naki))))
-                    ura-dora-count (count-dora (figure :ura-dora)
-                                               (concat (flatten1 (figure :figure))
-                                                       (flatten1 (figure :naki))))
-                    aka-dora-count (count (figure :aka))
-                    yakuman-flag (some (comp (=c 13) first) yaku)
-                    yaku (concat
-                          (figure :aux)
-                          yaku
-                          (when (not yakuman-flag)
-                            (concat
-                             (when (some (comp (=c (figure :ba)) ffirst)
-                                         (concat (filter koutu? (figure :figure))
-                                                 (figure :naki)))
-                               '((1 場風牌)))
-                             (when (some (comp (=c (figure :ie)) ffirst)
-                                         (concat (filter koutu? (figure :figure))
-                                                 (figure :naki)))
-                               '((1 自風牌)))
-                             (when (not= dora-count 0) `((~dora-count ~'ドラ)))
-                             (when (not= ura-dora-count 0) `((~ura-dora-count ~'裏ドラ)))))
-                             (when (not= aka-dora-count 0) `((~aka-dora-count ~'赤ドラ)))
-                          )
-                    han (reduce + (map first yaku))
-                    yaku-lst (map second yaku)
-                    hu
-                    (if (find-x '平和 yaku-lst)
-                      (if (find-x '門前自摸 yaku-lst) 20 30) ; ピンフツモは20符
-                      (cond (kui-pinhu? figure) 30 ; 喰いピンフは30符
-                            (find-x '七対子 yaku-lst) 25
-                            :else hu))
-                    ten (calc-ten hu han (figure :oya) ((complement nil?) (figure :tumo)))]
-                (assoc figure
-                       :han han
-                       :yaku yaku
-                       :hu hu
-                       :ten ten)
-                ))]
-      (sort-by (juxt :飜 :符)
-               (flip compare)
-               (map (comp show-figure add-info) figures hans hus)))))
+        hus (map nan-pu? figures)
+        mapped (map (comp show-figure add-info) figures hans hus)]
+    (if (< 1 (count mapped))
+      (sort-by (juxt :飜 :符) (flip compare) mapped)
+      mapped)))
+
+
 
 (defn hu-helper [lst]
   (let [figures (figure-out lst)
