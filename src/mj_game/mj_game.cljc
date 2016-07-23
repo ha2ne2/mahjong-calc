@@ -6,11 +6,12 @@
                         remove-xs intersection set-difference subset? remove-duplicate
                         find-duplicate count-if juxt* juxt-or juxt-cat remove-nth
                         random-take iter-perm permutations sfirst $ count= c-to-i s-to-i
-                        =c find-if flip include? mapc]]
+                        =c find-if flip include? mapc gets]]
    [ha2ne2.mahjong-calc :as calc]
    [mj-game.problems :refer [problems]]
    #?@(:cljs
-       ([goog.events :as events]
+       ([cljs.pprint]
+        [goog.events :as events]
         [goog.net.cookies :as cookies]
         [goog.dom :as dom]
         [goog.dom.forms :as forms]
@@ -144,7 +145,20 @@
      (defn show-current-problem []
        (let [curr (nth @current-problems @i)]
          (reset! current-answer (first (calc/nan-ten? curr)))
-         (set! (.-innerHTML buffer1) (str curr "<br>" (calc/hand-to-html (calc/to-list curr))))
+         (set! (-> buffer1 .-style .-backgroundColor) "#cccccc")
+         (set! (.-innerHTML buffer1)
+               (cljs.pprint/cl-format
+                nil
+                "~A~A局~A家<br>場役：~A<br><div id='dora'>ドラ表示牌：~A 裏ドラ表示牌：~A</div>~A~A"
+                (:ba @current-answer)
+                (:kyoku @current-answer)
+                (:ie @current-answer)
+                (clojure.string/join " " (map second (:aux @current-answer)))
+                (calc/pais-to-tags (map calc/get-dora-hyouji-hai (:dora @current-answer)))
+                (calc/pais-to-tags (map calc/get-dora-hyouji-hai (:ura-dora @current-answer)))
+                (calc/hand-to-html @current-answer)
+                (if (:tumo @current-answer) "ツモ" "ロン")
+                ))
          (set! (.-innerHTML buffer2) "")
          (mapc
           (fn [radio choice]
@@ -155,7 +169,17 @@
 
      (defn show-next-problem []
        (swap! i inc)
-       (set! (.-value (if @revenge-mode pbar2 pbar)) (int (* (/ @i (count @current-problems)) 100)))
+       (set! (.-width (.-style (if @revenge-mode pbar2 pbar)))
+             (str (int (* (/ @i (count @current-problems)) 100)) "%"))
+       (set! (.-innerHTML (if @revenge-mode (dom/getElement "pbar2-label")
+                              (dom/getElement "pbar-label")))
+             (str @i "/" (count @current-problems)))
+       (if (and (not @revenge-mode) (not (empty? @revenge-lst)))
+         (set! (.-innerHTML  (dom/getElement "pbar2-label"))
+             (str 0 "/" (count @revenge-lst))))
+       (set! (.-color (if @revenge-mode (dom/getElement "pbar2-label") 
+                          (dom/getElement "pbar-label")))
+             "white")
        (if (= @i (count @current-problems))
          (do (reset! revenge-mode true)
              (if (empty? @revenge-lst)
@@ -187,8 +211,12 @@
         (reset! i 0)
         (reset! revenge-mode false)
         (set! (.-disabled submit-btn) false)
-        (set! (.-value pbar) 0)
-        (set! (.-value pbar2) 0)
+        (set! (.-innerHTML (dom/getElement "pbar-label")) "-")
+        (set! (.-innerHTML (dom/getElement "pbar2-label")) "-")
+        (set! (.-color (dom/getElement "pbar-label")) "black")
+        (set! (.-color (dom/getElement "pbar2-label")) "black")
+        (set! (.-width (.-style pbar)) 0)
+        (set! (.-width (.-style pbar2)) 0)
         (set! (.-display (.-style ranking-form)) "none")
         (set-form-available ranking-form true)
         (show-current-problem)))
@@ -203,6 +231,7 @@
             (.send xhr form-data)
             (set-form-available ranking-form false))))
 
+     (def added-flag (atom false))
      (events/listen submit-btn "click"
         (fn [event]
           (.preventDefault event)
@@ -211,7 +240,7 @@
                 [hu2 han2 ten2 :as answer] (map get-value ["hu" "han" "ten"])]
             (if (= correct answer)
              (do
-               (set! (-> buffer1 .-style .-backgroundColor) "#cccccc")
+               (reset! added-flag false)
                (when (not @revenge-mode)
                  (swap! correct-num inc))
                (show-next-problem)) 
@@ -224,7 +253,9 @@
                  (swap! wrong-num inc)
                  (swap! correct-num dec)) ; その後+1されるので
                (set! (-> buffer1 .-style .-backgroundColor) "red")
-               (swap! revenge-lst conj (nth @current-problems @i)))))))
+               (when (not @added-flag)
+                 (swap! revenge-lst conj (nth @current-problems @i))
+                 (reset! added-flag true)))))))
 
      (set! (.-onload xhr)
            (fn [e]

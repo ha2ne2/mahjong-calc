@@ -2,6 +2,7 @@
   <head>
     <title>麻雀点数計算練習ソフト</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet">
     <style type="text/css">
 
       #question td {
@@ -15,21 +16,51 @@
       width: 6em;
       }
 
+      img {
+      vertical-align: bottom;
+      }
+
+      .myProgress {
+      position: relative;
+      width: 100%;
+      height: 30px;
+      background-color: #fff;
+      }
+
+      .pb {
+      position: absolute;
+      width: 0%;
+      height: 100%;
+      background-color: #337ab7
+      }
+
+      .pb-label {
+      text-align: center;
+      line-height: 30px;
+      color: black;
+      }
     </style>
-    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet">
     
   </head>
   <body>
     <section class="container">
-      <h1>麻雀点数計算練習ソフト rev17</h1>
+      <h1>麻雀点数計算練習ソフト rev18</h1>
       <div class="row">
         <div class="col-sm-9" style="background-color: #EEEEFF;">
           <br>
 
           <button id="start" class="btn btn-primary" disabled="true">開始</button>　　<span style="font-size:2em" id="timer">0:00'0</span><br><br>
           <nobr><div style="width:100%;background:#cccccc;font-size:2em" id="buffer1">-</div></nobr>
-          <progress value="0" max="100" style="width:100%" id="pbar" style="color:red"></progress>
-          <progress value="0" max="100" style="width:100%" id="pbar2" style="color:red"></progress>
+          <div class="myProgress">
+            <div class="pb" id="pbar">
+              <div class="pb-label" id="pbar-label">-</div>
+            </div>
+          </div>
+          <div class="myProgress">
+            <div class="pb" id="pbar2">
+              <div class="pb-label" id="pbar2-label">-</div>
+            </div>
+          </div>
           <div id="buffer2"></div>
           <br>
           <table>

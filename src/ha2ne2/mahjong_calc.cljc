@@ -227,6 +227,19 @@
         (<= 9 (second p)) nil
         :else (list (first p) (inc (second p)))))
 
+(def get-dora-hyouji-hai
+  (apply assoc {}
+         (interleave 
+          '((東) (南) (西) (北) (白) (発) (中)
+            (m 1) (m 2) (m 3) (m 4) (m 5) (m 6) (m 7) (m 8) (m 9)
+            (s 1) (s 2) (s 3) (s 4) (s 5) (s 6) (s 7) (s 8) (s 9)
+            (p 1) (p 2) (p 3) (p 4) (p 5) (p 6) (p 7) (p 8) (p 9))
+          '((北) (東) (南) (西) (中) (白) (発)
+            (m 9) (m 1) (m 2) (m 3) (m 4) (m 5) (m 6) (m 7) (m 8)
+            (s 9) (s 1) (s 2) (s 3) (s 4) (s 5) (s 6) (s 7) (s 8) (p 9)
+            (p 1) (p 2) (p 3) (p 4) (p 5) (p 6) (p 7) (p 8)))))
+
+
 ;; (to-str '((p 9) (m 4) (s 5) (s 4) (s 7) (m 7) (m 7) (p 1) (p 5) (m 6) (m 3) (北) (m 4) (p 1)))
 ;;=> "9p4m547s77m15p63m北4m1p"
 (defn to-str [hand]

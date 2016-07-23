@@ -329,4 +329,10 @@
          (map #(cons (first lst) %) (combinations (dec n) (rest lst)))
          (combinations n (rest lst)))))
 
+;; (gets {:a :apple :b :budou} :a :b)
+;; (:apple :budou)
+(defn gets [m & keys]
+  (map #(% m) keys))
+
+
 'ok
