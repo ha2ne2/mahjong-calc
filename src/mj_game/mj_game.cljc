@@ -52,18 +52,16 @@
 
 
 (defn convert-answer [answer]
-  (let [hu (if-let-it (< (it-is (:符 answer)) 80)
-             it 80)
-        han (case (:飜 answer)
+  (let [hu  (if (< (:hu answer) 80) (:hu answer) 80)
+        han (case (:han answer)
               (4 5) 4
               (6 7) 6
               (8 9 10) 8
               (11 12) 11
-              (if (<= 13 (:飜 answer))
-                13 (:飜 answer)))
-        ten (:点 answer)]
+              (if (<= 13 (:han answer))
+                13 (:han answer))) ;; 13 or 1 2 3
+        ten (:ten answer)]
     [hu han ten]))
-
 
 #?(:clj
    (defn game-start [problems]
@@ -144,8 +142,7 @@
        (set! (.-display (.-style ranking-form)) "block"))
 
      (defn show-current-problem []
-       (let [curr (nth @current-problems @i)
-             choices (calc/choices-generator curr)]
+       (let [curr (nth @current-problems @i)]
          (reset! current-answer (first (calc/nan-ten? curr)))
          (set! (.-innerHTML buffer1) (str curr "<br>" (calc/hand-to-html (calc/to-list curr))))
          (set! (.-innerHTML buffer2) "")
@@ -154,7 +151,7 @@
             (set! (.-value radio) choice)
             (set! (.-nodeValue (.-nextSibling radio)) choice))
           (seq ten-radio)
-          choices)))
+          (calc/choices-generator @current-answer))))
 
      (defn show-next-problem []
        (swap! i inc)
@@ -220,8 +217,8 @@
                (show-next-problem)) 
              (do
                (set! (.-innerHTML buffer2)
-                     (str (first (calc/nan-ten? (nth @current-problems @i))) "<br>"
-                          (let [[s s2] (calc/hu-helper (calc/to-list (nth @current-problems @i)))]
+                     (str (calc/show-figure @current-answer) "<br>"
+                          (let [[s s2] (:hu-info @current-answer)]
                                (str s "<br>" s2))))
                (when (not @revenge-mode)
                  (swap! wrong-num inc)
