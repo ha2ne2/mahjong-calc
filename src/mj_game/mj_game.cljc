@@ -98,6 +98,7 @@
        ISeqable
        (-seq [array] (array-seq array 0)))
      (enable-console-print!)
+     (def mode (atom nil))
      (def current-problems (atom nil))
      (def current-answer (atom nil))
      (def revenge-lst (atom []))
@@ -140,7 +141,8 @@
        (set! (.-innerHTML (dom/getElement "score-view"))
              (str "タイム　" (convert-time (int (/ (- @finish-time @start-time) 100)))))
        (set! (.-disabled submit-btn) true)
-       (set! (.-display (.-style ranking-form)) "block"))
+       (when (not (and (= @mode :one) (= @wrong-num 0)))
+         (set! (.-display (.-style ranking-form)) "block")))
 
      (defn show-current-problem []
        (let [curr (nth @current-problems @i)]
@@ -177,8 +179,9 @@
        (if (and (not @revenge-mode) (not (empty? @revenge-lst)))
          (set! (.-innerHTML  (dom/getElement "pbar2-label"))
              (str 0 "/" (count @revenge-lst))))
-       (set! (.-color (if @revenge-mode (dom/getElement "pbar2-label") 
-                          (dom/getElement "pbar-label")))
+       (set! (-> (if @revenge-mode (dom/getElement "pbar2-label") 
+                     (dom/getElement "pbar-label"))
+                 .-style .-color)
              "white")
        (if (= @i (count @current-problems))
          (do (reset! revenge-mode true)
@@ -197,35 +200,42 @@
         #(set! (.-disabled %) (not bool))
         (seq (.-elements form))))
      
+     (defn init []
+       (reset! start-time (.getTime (js/Date.)))
+       (when @timer (.clearInterval js/window @timer))
+       (reset! timer (.setInterval js/window timer-repaint 50))
+       (reset! correct-num 0)
+       (reset! wrong-num 0)
+       (reset! i 0)
+       (reset! revenge-mode false)
+       (reset! revenge-lst nil)
+       (set! (.-disabled submit-btn) false)
+       (set! (.-innerHTML (dom/getElement "pbar-label")) "-")
+       (set! (.-innerHTML (dom/getElement "pbar2-label")) "-")
+       (set! (-> (dom/getElement "pbar-label") .-style .-color) "black")
+       (set! (-> (dom/getElement "pbar2-label") .-style .-color) "black")
+       (set! (.-width (.-style pbar)) 0)
+       (set! (.-width (.-style pbar2)) 0)
+       (set! (.-display (.-style ranking-form)) "none")
+       (set-form-available ranking-form true)
+       (show-current-problem))
+
      (events/listen
       start-btn "click"
       (fn [event]
-        (reset! start-time (.getTime (js/Date.)))
-        (when @timer (.clearInterval js/window @timer))
-        (reset! timer (.setInterval js/window timer-repaint 50))
-
         (reset! current-problems
-                (random-take 10 problems))
-        (reset! correct-num 0)
-        (reset! wrong-num 0)
-        (reset! i 0)
-        (reset! revenge-mode false)
-        (set! (.-disabled submit-btn) false)
-        (set! (.-innerHTML (dom/getElement "pbar-label")) "-")
-        (set! (.-innerHTML (dom/getElement "pbar2-label")) "-")
-        (set! (.-color (dom/getElement "pbar-label")) "black")
-        (set! (.-color (dom/getElement "pbar2-label")) "black")
-        (set! (.-width (.-style pbar)) 0)
-        (set! (.-width (.-style pbar2)) 0)
-        (set! (.-display (.-style ranking-form)) "none")
-        (set-form-available ranking-form true)
-        (show-current-problem)))
+                (case @mode
+                  :one (random-take 1 problems)
+                  :normal (random-take 10 problems)))
+        (init)))
 
      (events/listen (dom/getElement "ranking-submit-btn") "click"
         (fn [event]
           (.preventDefault event)
           (.open xhr "POST" "../ranking.php")
           (let [form-data (js/FormData. ranking-form)]
+            (.append form-data
+                     "mode" (name @mode))
             (.append form-data
                      "score" (int (/ (- @finish-time @start-time) 100)))
             (.send xhr form-data)
@@ -256,12 +266,21 @@
                (when (not @added-flag)
                  (swap! revenge-lst conj (nth @current-problems @i))
                  (reset! added-flag true)))))))
+        
+     (reset! mode
+             (case (-> js/window .-location .-href (.split "/") .pop)
+               "one.html" :one
+               "game.html" :normal))
 
      (set! (.-onload xhr)
            (fn [e]
              (set! (.-innerHTML (dom/getElement "ranking-view"))
                    (.-response xhr))))
-     (.open xhr "GET" "../ranking.php")
-     (.send xhr)
+     
+     (.open xhr "POST" "../ranking.php")
+     (let [form-data (js/FormData.)]
+       (.append form-data
+                "mode" (name @mode))
+       (.send xhr form-data))
 
      (set! (.-disabled start-btn) false)))
