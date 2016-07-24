@@ -120,6 +120,12 @@
      (def xhr (js/XMLHttpRequest.))
      (def ranking-form (dom/getElement "ranking-form"))
 
+     (reset! mode
+             (case (-> js/window .-location .-href (.split "/") .pop)
+               "sheet.html" :sheet
+               "one.html" :one
+               "game.html" :normal))
+
      ;; 引数は0.1秒を1とする
      (defn convert-time [t]
        (str (int (/ t 600)) ":"
@@ -130,6 +136,20 @@
        (set! (.-innerHTML timer-view)
              (convert-time (int (/ (- (.getTime (js/Date.)) @start-time) 100)))))
 
+     (defn make-sheet-problem []
+       (let [tmp {:hu (rand-nth [25 30 40 50 60 70 80])
+                  :han (rand-nth [1 2 3 4 6 8 11 13])
+                  :oya (rand-nth [true false])
+                  :tumo (rand-nth [true false])}
+             tmp (assoc tmp :ten
+                        (apply calc/calc-ten (gets tmp :hu :han :oya :tumo)))]
+         (if (= [25 1] (gets tmp :hu :han))
+           (recur)
+           tmp)))
+
+     (defn make-sheet-problems [n]
+       (ha2ne2.util/gen-uniques n make-sheet-problem))
+     
      (defn show-result []
        (.clearInterval js/window @timer)
        (set! (.-value (dom/getElement "name"))
@@ -140,47 +160,67 @@
              (str "YOUR SCORE IS " @correct-num "/" 10))
        (set! (.-innerHTML (dom/getElement "score-view"))
              (str "タイム　" (convert-time (int (/ (- @finish-time @start-time) 100)))))
-       (set! (.-disabled submit-btn) true)
-       (when (not (and (= @mode :one) (= @wrong-num 0)))
+       (when (not= @mode :sheet)
+         (set! (.-disabled submit-btn) true))
+       (when (not (and (= @mode :one) (not= @wrong-num 0)))
          (set! (.-display (.-style ranking-form)) "block")))
 
      (defn show-current-problem []
        (let [curr (nth @current-problems @i)]
-         (reset! current-answer (first (calc/nan-ten? curr)))
          (set! (-> buffer1 .-style .-backgroundColor) "#cccccc")
-         (set! (.-innerHTML buffer1)
-               (cljs.pprint/cl-format
-                nil
-                "~A~A局~A家<br>場役：~A<br><div id='dora'>ドラ表示牌：~A 裏ドラ表示牌：~A</div>~A~A"
-                (:ba @current-answer)
-                (:kyoku @current-answer)
-                (:ie @current-answer)
-                (clojure.string/join " " (map second (:aux @current-answer)))
-                (calc/pais-to-tags (map calc/get-dora-hyouji-hai (:dora @current-answer)))
-                (calc/pais-to-tags (map calc/get-dora-hyouji-hai (:ura-dora @current-answer)))
-                (calc/hand-to-html @current-answer)
-                (if (:tumo @current-answer) "ツモ" "ロン")
-                ))
          (set! (.-innerHTML buffer2) "")
-         (mapc
-          (fn [radio choice]
-            (set! (.-value radio) choice)
-            (set! (.-nodeValue (.-nextSibling radio)) choice))
-          (seq ten-radio)
-          (calc/choices-generator @current-answer))))
+         (case @mode
+           :sheet
+           (do (set! (.-innerHTML buffer1)
+                     (cljs.pprint/cl-format
+                      nil
+                      "~A ~A ~A符 ~A飜"
+                      (if (:oya curr) "親" "子")
+                      (if (:tumo curr) "ツモ" "ロン")
+                      (:hu curr)
+                      (:han curr)))
+               (mapc
+                (fn [btn choice]
+                  (set! (.-value btn) choice)
+                  (set! (.-innerHTML btn) choice))
+                (seq (dom/getElementsByClass "answer-btn"))
+                (calc/choices-generator 4 curr)))
+           ;;other 
+           (do
+             (reset! current-answer (first (calc/nan-ten? curr)))
+             (set! (.-innerHTML buffer1)
+                   (cljs.pprint/cl-format
+                    nil
+                    "~A~A局~A家<br>場役：~A<br><div id='dora'>ドラ表示牌：~A 裏ドラ表示牌：~A</div>~A~A"
+                    (:ba @current-answer)
+                    (:kyoku @current-answer)
+                    (:ie @current-answer)
+                    (clojure.string/join " " (map second (:aux @current-answer)))
+                    (calc/pais-to-tags (map calc/get-dora-hyouji-hai (:dora @current-answer)))
+                    (calc/pais-to-tags (map calc/get-dora-hyouji-hai (:ura-dora @current-answer)))
+                    (calc/hand-to-html @current-answer)
+                    (if (:tumo @current-answer) "ツモ" "ロン")))
+             (mapc
+              (fn [radio choice]
+                (set! (.-value radio) choice)
+                (set! (.-nodeValue (.-nextSibling radio)) choice))
+              (seq ten-radio)
+              (calc/choices-generator 8 @current-answer))))))
 
      (defn show-next-problem []
        (swap! i inc)
        (set! (.-width (.-style (if @revenge-mode pbar2 pbar)))
              (str (int (* (/ @i (count @current-problems)) 100)) "%"))
-       (set! (.-innerHTML (if @revenge-mode (dom/getElement "pbar2-label")
-                              (dom/getElement "pbar-label")))
+       (set! (.-innerHTML (if @revenge-mode
+                            (dom/getElement "pbar2-label")
+                            (dom/getElement "pbar-label")))
              (str @i "/" (count @current-problems)))
        (if (and (not @revenge-mode) (not (empty? @revenge-lst)))
          (set! (.-innerHTML  (dom/getElement "pbar2-label"))
              (str 0 "/" (count @revenge-lst))))
-       (set! (-> (if @revenge-mode (dom/getElement "pbar2-label") 
-                     (dom/getElement "pbar-label"))
+       (set! (-> (if @revenge-mode
+                   (dom/getElement "pbar2-label") 
+                   (dom/getElement "pbar-label"))
                  .-style .-color)
              "white")
        (if (= @i (count @current-problems))
@@ -208,8 +248,7 @@
        (reset! wrong-num 0)
        (reset! i 0)
        (reset! revenge-mode false)
-       (reset! revenge-lst nil)
-       (set! (.-disabled submit-btn) false)
+       (reset! revenge-lst [])
        (set! (.-innerHTML (dom/getElement "pbar-label")) "-")
        (set! (.-innerHTML (dom/getElement "pbar2-label")) "-")
        (set! (-> (dom/getElement "pbar-label") .-style .-color) "black")
@@ -218,6 +257,9 @@
        (set! (.-width (.-style pbar2)) 0)
        (set! (.-display (.-style ranking-form)) "none")
        (set-form-available ranking-form true)
+       (if (= @mode :sheet)
+         (set-form-available (dom/getElement "form1") true)
+         (set! (.-disabled submit-btn) false))
        (show-current-problem))
 
      (events/listen
@@ -225,6 +267,7 @@
       (fn [event]
         (reset! current-problems
                 (case @mode
+                  :sheet (make-sheet-problems 10)
                   :one (random-take 1 problems)
                   :normal (random-take 10 problems)))
         (init)))
@@ -242,35 +285,59 @@
             (set-form-available ranking-form false))))
 
      (def added-flag (atom false))
-     (events/listen submit-btn "click"
-        (fn [event]
-          (.preventDefault event)
-          (let [get-value (fn [name] (forms/getValueByName (dom/getElement "form1") name))
-                [hu han ten :as correct] (map str (convert-answer @current-answer))
-                [hu2 han2 ten2 :as answer] (map get-value ["hu" "han" "ten"])]
-            (if (= correct answer)
-             (do
-               (reset! added-flag false)
-               (when (not @revenge-mode)
-                 (swap! correct-num inc))
-               (show-next-problem)) 
-             (do
-               (set! (.-innerHTML buffer2)
-                     (str (calc/show-figure @current-answer) "<br>"
-                          (let [[s s2] (:hu-info @current-answer)]
-                               (str s "<br>" s2))))
-               (when (not @revenge-mode)
-                 (swap! wrong-num inc)
-                 (swap! correct-num dec)) ; その後+1されるので
-               (set! (-> buffer1 .-style .-backgroundColor) "red")
-               (when (not @added-flag)
-                 (swap! revenge-lst conj (nth @current-problems @i))
-                 (reset! added-flag true)))))))
-        
-     (reset! mode
-             (case (-> js/window .-location .-href (.split "/") .pop)
-               "one.html" :one
-               "game.html" :normal))
+
+     (when (= @mode :sheet)
+       (mapc
+        (fn [btn]
+          (events/listen
+           btn "click"
+           (fn [event]
+             (.preventDefault event)
+             (println @current-problems)
+             (println (:ten (@current-problems @i)))
+             (if (= (:ten (@current-problems @i))
+                    (.-value btn))
+               (do
+                 (reset! added-flag false)
+                 (when (not @revenge-mode) (swap! correct-num inc))
+                 (show-next-problem))
+               (do
+                 (set! (-> buffer1 .-style .-backgroundColor) "red")
+                 (set! (.-innerHTML buffer2) (:ten (@current-problems @i)))
+                 (when (not @added-flag)
+                   (when (not @revenge-mode)
+                     (swap! wrong-num inc)
+                     (swap! correct-num dec))
+                   (swap! revenge-lst conj (nth @current-problems @i))
+                   (reset! added-flag true)))))))
+        (seq (.-elements (dom/getElement "form1")))))
+
+     (when submit-btn
+       (events/listen submit-btn "click"
+                      (fn [event]
+                        (.preventDefault event)
+                        (let [get-value (fn [name] (forms/getValueByName (dom/getElement "form1") name))
+                              [hu han ten :as correct] (map str (convert-answer @current-answer))
+                              [hu2 han2 ten2 :as answer] (map get-value ["hu" "han" "ten"])]
+                          (if (= correct answer)
+                            (do
+                              (reset! added-flag false)
+                              (when (not @revenge-mode)
+                                (swap! correct-num inc))
+                              (show-next-problem)) 
+                            (do
+                              (set! (.-innerHTML buffer2)
+                                    (str (calc/show-figure @current-answer) "<br>"
+                                         (let [[s s2] (:hu-info @current-answer)]
+                                           (str s "<br>" s2))))
+                              (set! (-> buffer1 .-style .-backgroundColor) "red")
+                              (when (not @added-flag)
+                                (when (not @revenge-mode)
+                                  (swap! wrong-num inc)
+                                  (swap! correct-num dec))
+                                (swap! revenge-lst conj (nth @current-problems @i))
+                                (reset! added-flag true))))))))
+     ;;(events/listen
 
      (set! (.-onload xhr)
            (fn [e]

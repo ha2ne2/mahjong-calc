@@ -996,12 +996,13 @@
 
 ;; (choices-generator (first (nan-ten? "34578m345p33345s 6m':東4局南家立直ドラ中裏ドラ発")))
 ;; ("300-500" "400-800" "800-1600" "1000-2000" "1200-2300" "1300-2600" "2000-4000" "3000-6000")
-(defn choices-generator [{:keys [oya tumo ten] :as hand}]
-  (->> (reduce #(if (= 8 (count %)) (reduced %) (conj % %2))
+
+(defn choices-generator [n {:keys [oya tumo ten] :as hand}]
+  (->> (reduce #(if (= n (count %)) (reduced %) (conj % %2))
                #{ten} (repeatedly #(calc-ten (rand-nth [25 30 40 50 60 70])
                                              (rand-nth [1 2 3 4 5 6])
                                              oya
-                                             ((complement nil?) tumo))))
+                                             (if tumo true false))))
        vec
        (sort-by #(s-to-i (first (clojure.string/split % #"-"))))))
 

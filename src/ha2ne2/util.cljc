@@ -37,8 +37,8 @@
       (lazy-seq (map* f tail)))))
 
 
-;; (repeat-cat 3 '((逋ｽ) (逋ｺ)))
-;; => ((逋ｽ) (逋ｺ) (逋ｽ) (逋ｺ) (逋ｽ) (逋ｺ))
+;; (repeat-cat 3 '((騾具ｽｽ) (騾具ｽｺ)))
+;; => ((騾具ｽｽ) (騾具ｽｺ) (騾具ｽｽ) (騾具ｽｺ) (騾具ｽｽ) (騾具ｽｺ))
 (defn repeat-cat [n lst] (apply concat (repeat n lst)))
 
 ;; (remove (=x 1) '(1 2 3 1 2 3))
@@ -157,7 +157,7 @@
     (fn [x] (f x))
     (fn [x] (or (f x) ((apply juxt-or fns) x)))))
 
-;; (nanimati? "2334456789m荳ｭ荳ｭ荳ｭ")
+;; (nanimati? "2334456789m闕ｳ����ｭ闕ｳ����ｭ闕ｳ����ｭ")
 ;; (concat (f lst) (g lst) (h lst)) as
 ;; ((juxt-cat f g h) lst)
 ;; sample
@@ -191,6 +191,13 @@
           (if (selected m)
             (recur (rand-int len) selected result)
             (recur (rand-int len) (conj selected m) (conj result (nth lst m)))))))))
+
+
+;; (gen-uniques 3 #(rand-int 10))
+;;=>[4 3 9]
+(defn gen-uniques [n gen]
+  (shuffle (vec (reduce #(if (= n (count %)) (reduced %) (conj % %2))
+                        #{} (repeatedly gen)))))
 
 
 (defn iter-perm [v]
@@ -295,7 +302,6 @@
                   remain (int (* per (- len i)))
                   total  (int (* per len))
                   ]
-                                        ;(println hist)
               (when (zero? (mod i interval))
                 (println "   Per   Elapse   Remain    Total Count" )
                 (clojure.pprint/cl-format true "~6,2f ~{~6d ~}~d/~d~%"
@@ -307,7 +313,6 @@
     (if (empty? lsts) [cs rs]
         (recur (conj cs c) (conj rs r) tail))))
 
-;; 返り値を集めないmap
 (defn mapc [f & lsts]
   (loop [lsts lsts]
     (let [[cars rests] (separate-cars-rests lsts)]
