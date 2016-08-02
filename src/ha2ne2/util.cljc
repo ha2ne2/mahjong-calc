@@ -195,9 +195,16 @@
 
 ;; (gen-uniques 3 #(rand-int 10))
 ;;=>[4 3 9]
-(defn gen-uniques [n gen]
-  (shuffle (vec (reduce #(if (= n (count %)) (reduced %) (conj % %2))
-                        #{} (repeatedly gen)))))
+(defn gen-uniques [n gen key]
+  (shuffle (vec (reduce
+                 (fn [[buf result] x]
+                   (if (= n (count buf))
+                     (reduced result)
+                     (if (buf (key x))
+                       [buf result]
+                       [(conj buf (key x)) (conj result x)])))
+                 [#{} #{}]
+                 (repeatedly gen)))))
 
 
 (defn iter-perm [v]

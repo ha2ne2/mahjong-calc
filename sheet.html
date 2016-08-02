@@ -45,13 +45,13 @@
   <body>
     <section class="container">
       <h1>麻雀点数計算練習ソフト rev20</h1>
-      <a href="./one.html">即断一問</a>｜<a href="./hu.html">符計算特訓</a>｜飜計算特訓｜<a href="sheet.html">点数表暗記</a>｜<b>NORMAL</b>｜HARD｜EXTRA<br>
+      <a href="one.html">即断一問</a>｜<a href="./hu.html">符計算特訓</a>｜飜計算特訓｜<b>点数表暗記</b>｜<a href="game.html">NORMAL</a>｜HARD｜EXTRA<br>
       <div class="row">
         <div class="col-sm-9" style="background-color: #EEEEFF;">
           <br>
 
           <button id="start" class="btn btn-primary" disabled="true">開始</button>　　<span style="font-size:2em" id="timer">0:00'0</span><br><br>
-           <nobr><div style="width:100%;background:#cccccc;font-size:2em" id="buffer1">NORMAL<br>実践によく出る問題が十問出題されます。<br>間違えた問題はもう一度出題されます。</div></nobr>
+          <nobr><div style="width:100%;background:#cccccc;font-size:2em" id="buffer1">点数表暗記</div></nobr>
           <div class="myProgress">
             <div class="pb" id="pbar">
               <div class="pb-label" id="pbar-label">-</div>
@@ -65,47 +65,18 @@
           <div id="buffer2"></div>
           <br>
           <table>
-            <tr><td>
+            <tr valign="top">
+              <td>
                 <div id="question">
                   <form id="form1">
                     <table>
                       <tr>
-                        <td>符</td><td>翻</td><td>点</td>
+                        <td><button class="answer-btn btn btn-default" style="width:10em" disabled="true">-</button></td>
+                        <td><button class="answer-btn btn btn-default" style="width:10em" disabled="true">-</button></td>
                       </tr>
                       <tr>
-                        <td>
-                          <label><input type="radio" name="hu" value="20">20</label><br>
-                          <label><input type="radio" name="hu" value="25">25</label><br>
-                          <label><input type="radio" name="hu" value="30">30</label><br>
-                          <label><input type="radio" name="hu" value="40">40</label><br>
-                          <label><input type="radio" name="hu" value="50">50</label><br>
-                          <label><input type="radio" name="hu" value="60">60</label><br>
-                          <label><input type="radio" name="hu" value="70">70</label><br>
-                          <label><input type="radio" name="hu" value="80">80-</label><br>
-                        </td>
-                        <td>
-                          <label><input type="radio" name="han" value="1">1</label><br>
-                          <label><input type="radio" name="han" value="2">2</label><br>
-                          <label><input type="radio" name="han" value="3">3</label><br>
-                          <label><input type="radio" name="han" value="4">4-5</label><br>
-                          <label><input type="radio" name="han" value="6">6-7</label><br>
-                          <label><input type="radio" name="han" value="8">8-10</label><br>
-                          <label><input type="radio" name="han" value="11">11-12</label><br>
-                          <label><input type="radio" name="han" value="13">13-</label><br>
-                        </td>
-                        <td style="width: 8em">
-                          <label><input type="radio" name="ten" value="1">-</label><br>
-                          <label><input type="radio" name="ten" value="2">-</label><br>
-                          <label><input type="radio" name="ten" value="3">-</label><br>
-                          <label><input type="radio" name="ten" value="4">-</label><br>
-                          <label><input type="radio" name="ten" value="7">-</label><br>
-                          <label><input type="radio" name="ten" value="8">-</label><br>
-                          <label><input type="radio" name="ten" value="11">-</label><br>
-                          <label><input type="radio" name="ten" value="13">-</label><br>
-                        </td>
-                        <td>
-                          <input type="submit" disabled="true" value="回答" id="submit-btn">
-                        </td>
+                        <td><button class="answer-btn btn btn-default" style="width:10em" disabled="true">-</button></td>
+                        <td><button class="answer-btn btn btn-default" style="width:10em" disabled="true">-</button></td>
                       </tr>
                     </table>
                   </form>

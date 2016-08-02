@@ -100,6 +100,7 @@
      (enable-console-print!)
      (def mode (atom nil))
      (def current-problems (atom nil))
+     (def current-problems' (atom nil))
      (def current-answer (atom nil))
      (def revenge-lst (atom []))
      (def revenge-mode (atom false))
@@ -109,6 +110,8 @@
      (def pbar (dom/getElement "pbar"))
      (def pbar2 (dom/getElement "pbar2"))
      (def start-time (atom (.getTime (js/Date.))))
+     (def start-time2 (atom nil))
+     (def laps (atom []))
      (def finish-time (atom nil))
      (def timer-view (dom/getElement "timer"))
      (def timer (atom nil))
@@ -122,6 +125,7 @@
 
      (reset! mode
              (case (-> js/window .-location .-href (.split "/") .pop)
+               "hu.html" :hu
                "sheet.html" :sheet
                "one.html" :one
                "game.html" :normal))
@@ -137,8 +141,8 @@
              (convert-time (int (/ (- (.getTime (js/Date.)) @start-time) 100)))))
 
      (defn make-sheet-problem []
-       (let [tmp {:hu (rand-nth [25 30 40 50 60 70 80])
-                  :han (rand-nth [1 2 3 4 6 8 11 13])
+       (let [tmp {:hu (rand-nth [25 25 30 30 40 40 50 50 60 60 70 80])
+                  :han (rand-nth (concat (range 1 5) (range 1 14)))
                   :oya (rand-nth [true false])
                   :tumo (rand-nth [true false])}
              tmp (assoc tmp :ten
@@ -148,7 +152,16 @@
            tmp)))
 
      (defn make-sheet-problems [n]
-       (ha2ne2.util/gen-uniques n make-sheet-problem))
+       (ha2ne2.util/gen-uniques n make-sheet-problem :ten))
+     
+     (defn p-show [p]
+       (cljs.pprint/cl-format
+        nil
+        "~A ~A ~A符 ~A飜"
+        (if (:oya p) "親" "子")
+        (if (:tumo p) "ツモ" "ロン")
+        (:hu p)
+        (:han p)))
      
      (defn show-result []
        (.clearInterval js/window @timer)
@@ -156,13 +169,23 @@
              (if-let [name (.get goog.net.cookies "name")]
                (js/decodeURI name)
                ""))
+       (set! (.-innerHTML (dom/getElement "result-area"))
+             (case @mode
+               :sheet
+               (reduce str (map #(str %1 " : " (p-show %2) " " (:ten %2) "<br>")
+                                @laps @current-problems'))
+               :hu
+               (reduce str (map #(str %1 " : " %2 " -> " (:hu (first (calc/nan-ten? %2))) "符<br>")
+                                @laps @current-problems'))
+               ""))
        (set! (.-innerHTML buffer1)
              (str "YOUR SCORE IS " @correct-num "/" 10))
        (set! (.-innerHTML (dom/getElement "score-view"))
              (str "タイム　" (convert-time (int (/ (- @finish-time @start-time) 100)))))
-       (when (not= @mode :sheet)
+       (when (not (#{:sheet :hu} @mode))
          (set! (.-disabled submit-btn) true))
        (when (not (and (= @mode :one) (not= @wrong-num 0)))
+         (set! (.-display (.-style (dom/getElement "form1"))) "none")
          (set! (.-display (.-style ranking-form)) "block")))
 
      (defn show-current-problem []
@@ -171,14 +194,7 @@
          (set! (.-innerHTML buffer2) "")
          (case @mode
            :sheet
-           (do (set! (.-innerHTML buffer1)
-                     (cljs.pprint/cl-format
-                      nil
-                      "~A ~A ~A符 ~A飜"
-                      (if (:oya curr) "親" "子")
-                      (if (:tumo curr) "ツモ" "ロン")
-                      (:hu curr)
-                      (:han curr)))
+           (do (set! (.-innerHTML buffer1) (p-show curr))
                (mapc
                 (fn [btn choice]
                   (set! (.-value btn) choice)
@@ -200,12 +216,13 @@
                     (calc/pais-to-tags (map calc/get-dora-hyouji-hai (:ura-dora @current-answer)))
                     (calc/hand-to-html @current-answer)
                     (if (:tumo @current-answer) "ツモ" "ロン")))
-             (mapc
-              (fn [radio choice]
-                (set! (.-value radio) choice)
-                (set! (.-nodeValue (.-nextSibling radio)) choice))
-              (seq ten-radio)
-              (calc/choices-generator 8 @current-answer))))))
+             (when (not= @mode :hu)
+               (mapc
+                (fn [radio choice]
+                  (set! (.-value radio) choice)
+                  (set! (.-nodeValue (.-nextSibling radio)) choice))
+                (seq ten-radio)
+                (calc/choices-generator 8 @current-answer)))))))
 
      (defn show-next-problem []
        (swap! i inc)
@@ -242,6 +259,8 @@
      
      (defn init []
        (reset! start-time (.getTime (js/Date.)))
+       (reset! start-time2 @start-time)
+       (reset! laps [])
        (when @timer (.clearInterval js/window @timer))
        (reset! timer (.setInterval js/window timer-repaint 50))
        (reset! correct-num 0)
@@ -249,15 +268,19 @@
        (reset! i 0)
        (reset! revenge-mode false)
        (reset! revenge-lst [])
+       (set! (.-innerHTML buffer1) "")
+       (set! (.-innerHTML buffer2) "")
+       (set! (.-innerHTML (dom/getElement "result-area")) "")
        (set! (.-innerHTML (dom/getElement "pbar-label")) "-")
        (set! (.-innerHTML (dom/getElement "pbar2-label")) "-")
        (set! (-> (dom/getElement "pbar-label") .-style .-color) "black")
        (set! (-> (dom/getElement "pbar2-label") .-style .-color) "black")
        (set! (.-width (.-style pbar)) 0)
        (set! (.-width (.-style pbar2)) 0)
+       (set! (.-display (.-style (dom/getElement "form1"))) "block")
        (set! (.-display (.-style ranking-form)) "none")
        (set-form-available ranking-form true)
-       (if (= @mode :sheet)
+       (if (#{:sheet :hu} @mode)
          (set-form-available (dom/getElement "form1") true)
          (set! (.-disabled submit-btn) false))
        (show-current-problem))
@@ -267,9 +290,11 @@
       (fn [event]
         (reset! current-problems
                 (case @mode
+                  :hu (vec (random-take 10 problems))
                   :sheet (make-sheet-problems 10)
                   :one (random-take 1 problems)
                   :normal (random-take 10 problems)))
+        (reset! current-problems' @current-problems)
         (init)))
 
      (events/listen (dom/getElement "ranking-submit-btn") "click"
@@ -286,30 +311,40 @@
 
      (def added-flag (atom false))
 
-     (when (= @mode :sheet)
+     (when (#{:sheet :hu} @mode)
        (mapc
         (fn [btn]
           (events/listen
            btn "click"
            (fn [event]
              (.preventDefault event)
-             (println @current-problems)
-             (println (:ten (@current-problems @i)))
-             (if (= (:ten (@current-problems @i))
-                    (.-value btn))
-               (do
-                 (reset! added-flag false)
-                 (when (not @revenge-mode) (swap! correct-num inc))
-                 (show-next-problem))
-               (do
-                 (set! (-> buffer1 .-style .-backgroundColor) "red")
-                 (set! (.-innerHTML buffer2) (:ten (@current-problems @i)))
-                 (when (not @added-flag)
-                   (when (not @revenge-mode)
-                     (swap! wrong-num inc)
-                     (swap! correct-num dec))
-                   (swap! revenge-lst conj (nth @current-problems @i))
-                   (reset! added-flag true)))))))
+             
+             (let [hu (when (= @mode :hu)
+                        (if-let-it (<= 60 (it-is (:hu (first (calc/nan-ten? (@current-problems @i))))))
+                          "60-"
+                          (str it)))]
+               (println hu (.-value btn))
+               (if (= (if (= @mode :sheet)
+                        (:ten (@current-problems @i))
+                        hu)
+                      (.-value btn))
+                 (let [ctime (.getTime (js/Date.))]
+                   (swap! laps conj
+                          (convert-time (int (/ (- ctime @start-time2) 100))))
+                   (reset! start-time2 ctime)
+                   (reset! added-flag false)
+                   (when (not @revenge-mode) (swap! correct-num inc))
+                   (show-next-problem))
+                 (do
+                   (set! (-> buffer1 .-style .-backgroundColor) "red")
+                   (set! (.-innerHTML buffer2) 
+                         (if (= @mode :sheet) (:ten (@current-problems @i)) hu))
+                   (when (not @added-flag)
+                     (when (not @revenge-mode)
+                       (swap! wrong-num inc)
+                       (swap! correct-num dec))
+                     (swap! revenge-lst conj (nth @current-problems @i))
+                     (reset! added-flag true))))))))
         (seq (.-elements (dom/getElement "form1")))))
 
      (when submit-btn
@@ -337,7 +372,6 @@
                                   (swap! correct-num dec))
                                 (swap! revenge-lst conj (nth @current-problems @i))
                                 (reset! added-flag true))))))))
-     ;;(events/listen
 
      (set! (.-onload xhr)
            (fn [e]

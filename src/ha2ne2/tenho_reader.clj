@@ -471,18 +471,31 @@
   (let [ids (mapcat get-ids-from-file file-names)]
     (mapc' convert (take 1000 (mapcat (comp get-agari add-path-to-id) ids)))))
 
+(defn hu-analyze [n]
+  (let [ids    (mapcat get-ids-from-file file-names)
+        agaris (mapcat #(get-agari' (get-path-from-id %) %) ids)]
+    (->> (reduce (fn [acc agari]
+                   (update acc (:ten' agari) (fnil inc 0)))
+                 {} (take n agaris))
+         vec
+         (sort-by first)
+         )))
 
+(defn take-80-over [n]
+  (let [ids    (mapcat get-ids-from-file file-names)
+        agaris (mapcat #(get-agari' (get-path-from-id %) %) ids)]
+    (filter #(<= 80 (:hu' %)) (take n agaris))))
 
-
-;; (defn agari-100-test2 []
-;;   (let [files (monthly-files "1401")
-;;         ids (mapcat get-ids-from-file files)
-;;         agaris (take 1000 (mapcat #(get-agari' "1401/" %) ids))]
-;;     (mapc-with-time
-;;      (fn [agari]
-;;        (let [p (agari->problem agari)]
-;;          (when-not (= (extract-by p [:hu :ten]) [(get-in p [:answer :符]) (get-in p [:answer :点])])
-;;            (println "\n" p))))
-;;      agaris 100)))
+;; ((0 "0.025%")
+;;  (20 "9.081%")
+;;  (25 "2.619%")
+;;  (30 "59.714%")
+;;  (40 "25.2%")
+;;  (50 "2.597%")
+;;  (60 "0.476%")
+;;  (70 "0.261%")
+;;  (80 "0.022%")
+;;  (90 "0.003%")
+;;  (100 "0.002%"))
 
 'ok
