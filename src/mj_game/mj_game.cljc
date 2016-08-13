@@ -59,7 +59,7 @@
               (6 7) 6
               (8 9 10) 8
               (11 12) 11
-              (if (<= 13 (:han answer))
+              (if (or (<= 13 (:han answer)) (= 0 (:han answer)))
                 13 (:han answer))) ;; 13 or 1 2 3
         ten (:ten answer)]
     [hu han ten]))
@@ -98,6 +98,7 @@
        ISeqable
        (-seq [array] (array-seq array 0)))
      (enable-console-print!)
+     (set! (.-innerHTML (dom/getElement "rev")) "22")
      (def mode (atom nil))
      (def current-problems (atom nil))
      (def current-problems' (atom nil))
@@ -125,6 +126,7 @@
 
      (reset! mode
              (case (-> js/window .-location .-href (.split "/") .pop)
+               "han.html" :han
                "hu.html" :hu
                "sheet.html" :sheet
                "one.html" :one
@@ -164,6 +166,7 @@
         (:han p)))
      
      (defn show-result []
+       (reset! finish-time (.getTime (js/Date.)))
        (.clearInterval js/window @timer)
        (set! (.-value (dom/getElement "name"))
              (if-let [name (.get goog.net.cookies "name")]
@@ -177,12 +180,15 @@
                :hu
                (reduce str (map #(str %1 " : " %2 " -> " (:hu (first (calc/nan-ten? %2))) "符<br>")
                                 @laps @current-problems'))
+               :han
+               (reduce str (map #(str %1 " : " %2 " -> " (:han (first (calc/nan-ten? %2))) "飜<br>")
+                                @laps @current-problems'))
                ""))
        (set! (.-innerHTML buffer1)
              (str "YOUR SCORE IS " @correct-num "/" 10))
        (set! (.-innerHTML (dom/getElement "score-view"))
              (str "タイム　" (convert-time (int (/ (- @finish-time @start-time) 100)))))
-       (when (not (#{:sheet :hu} @mode))
+       (when (not (#{:sheet :hu :han} @mode))
          (set! (.-disabled submit-btn) true))
        (when (not (and (= @mode :one) (not= @wrong-num 0)))
          (set! (.-display (.-style (dom/getElement "form1"))) "none")
@@ -216,7 +222,7 @@
                     (calc/pais-to-tags (map calc/get-dora-hyouji-hai (:ura-dora @current-answer)))
                     (calc/hand-to-html @current-answer)
                     (if (:tumo @current-answer) "ツモ" "ロン")))
-             (when (not= @mode :hu)
+             (when (not (#{:hu :han} @mode))
                (mapc
                 (fn [radio choice]
                   (set! (.-value radio) choice)
@@ -243,8 +249,7 @@
        (if (= @i (count @current-problems))
          (do (reset! revenge-mode true)
              (if (empty? @revenge-lst)
-               (do (reset! finish-time (.getTime (js/Date.)))
-                   (show-result))
+               (show-result)
                (do (reset! current-problems @revenge-lst)
                    (reset! revenge-lst [])
                    (reset! i 0)
@@ -280,7 +285,7 @@
        (set! (.-display (.-style (dom/getElement "form1"))) "block")
        (set! (.-display (.-style ranking-form)) "none")
        (set-form-available ranking-form true)
-       (if (#{:sheet :hu} @mode)
+       (if (#{:sheet :hu :han} @mode)
          (set-form-available (dom/getElement "form1") true)
          (set! (.-disabled submit-btn) false))
        (show-current-problem))
@@ -290,6 +295,7 @@
       (fn [event]
         (reset! current-problems
                 (case @mode
+                  :han (vec (random-take 10 problems))
                   :hu (vec (random-take 10 problems))
                   :sheet (make-sheet-problems 10)
                   :one (random-take 1 problems)
@@ -311,40 +317,50 @@
 
      (def added-flag (atom false))
 
-     (when (#{:sheet :hu} @mode)
+     (when (#{:sheet :hu :han} @mode)
        (mapc
         (fn [btn]
           (events/listen
            btn "click"
            (fn [event]
              (.preventDefault event)
-             
-             (let [hu (when (= @mode :hu)
-                        (if-let-it (<= 60 (it-is (:hu (first (calc/nan-ten? (@current-problems @i))))))
-                          "60-"
-                          (str it)))]
-               (println hu (.-value btn))
-               (if (= (if (= @mode :sheet)
-                        (:ten (@current-problems @i))
-                        hu)
-                      (.-value btn))
-                 (let [ctime (.getTime (js/Date.))]
-                   (swap! laps conj
-                          (convert-time (int (/ (- ctime @start-time2) 100))))
-                   (reset! start-time2 ctime)
-                   (reset! added-flag false)
-                   (when (not @revenge-mode) (swap! correct-num inc))
-                   (show-next-problem))
-                 (do
-                   (set! (-> buffer1 .-style .-backgroundColor) "red")
-                   (set! (.-innerHTML buffer2) 
-                         (if (= @mode :sheet) (:ten (@current-problems @i)) hu))
-                   (when (not @added-flag)
-                     (when (not @revenge-mode)
-                       (swap! wrong-num inc)
-                       (swap! correct-num dec))
-                     (swap! revenge-lst conj (nth @current-problems @i))
-                     (reset! added-flag true))))))))
+             (if (= (case @mode
+                      :sheet (:ten (@current-problems @i))
+                      :hu (let [answer (first (calc/nan-ten? (@current-problems @i)))]
+                            (if (<= 60 (:hu answer))
+                              "60-"
+                              (str (:hu answer))))
+                      :han (let [answer (first (calc/nan-ten? (@current-problems @i)))]
+                             (str (case (:han answer)
+                                    (4 5) 4
+                                    (6 7) 6
+                                    (8 9 10) 8
+                                    (11 12) 11
+                                    (if (or (<= 13 (:han answer)) (= 0 (:han answer)))
+                                      13
+                                      (:han answer))))))
+                    (.-value btn))
+               (let [ctime (.getTime (js/Date.))]
+                 (swap! laps conj
+                        (convert-time (int (/ (- ctime @start-time2) 100))))
+                 (reset! start-time2 ctime)
+                 (reset! added-flag false)
+                 (when (not @revenge-mode) (swap! correct-num inc))
+                 (show-next-problem))
+               (do
+                 (set! (-> buffer1 .-style .-backgroundColor) "red")
+                 (set! (.-innerHTML buffer2) 
+                       (case @mode
+                           :sheet (:ten (@current-problems @i))
+                           :hu (#(str (first %) "<br>" (second %)) 
+                                (:hu-info (first (calc/nan-ten? (@current-problems @i)))))
+                           :han (:yaku (first (calc/nan-ten? (@current-problems @i))))))
+                 (when (not @added-flag)
+                   (when (not @revenge-mode)
+                     (swap! wrong-num inc)
+                     (swap! correct-num dec))
+                   (swap! revenge-lst conj (nth @current-problems @i))
+                   (reset! added-flag true)))))))
         (seq (.-elements (dom/getElement "form1")))))
 
      (when submit-btn
