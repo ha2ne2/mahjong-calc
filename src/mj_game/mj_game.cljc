@@ -192,7 +192,32 @@
          (set! (.-disabled submit-btn) true))
        (when (not (and (= @mode :one) (not= @wrong-num 0)))
          (set! (.-display (.-style (dom/getElement "form1"))) "none")
-         (set! (.-display (.-style ranking-form)) "block")))
+         (set! (.-display (.-style ranking-form)) "block"))
+
+       (loop [fc (.-firstChild (dom/getElement "tweet-area"))]
+         (when fc
+           (.removeChild (dom/getElement "tweet-area") fc)
+           (recur (.-firstChild (dom/getElement "tweet-area")))))
+
+       (let [clone (.cloneNode (dom/getElement "twitter-share-button-template"))]
+         (.setAttribute clone "data-text"
+                        (str (case @mode
+                               :one "即断一問"
+                               :hu  "符計算特訓"
+                               :han "飜計算特訓"
+                               :sheet "点数表暗記"
+                               :normal "NORMAL")
+                             "モードを"
+                             (convert-time (int (/ (- @finish-time @start-time) 100)))
+                             "秒でクリアしました。"))
+         (.setAttribute clone "data-url" (.-href js/location))
+         (.setAttribute clone "class"  "twitter-share-button")
+         (.appendChild (dom/getElement "tweet-area") clone))
+
+       (let [s (.createElement js/document "script")]
+         (set! (.-type s) "text/javascript")
+         (set! (.-src s)  "http://platform.twitter.com/widgets.js")
+         (.appendChild (.-body js/document) s)))
 
      (defn show-current-problem []
        (let [curr (nth @current-problems @i)]
